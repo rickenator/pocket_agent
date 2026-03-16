@@ -1,0 +1,2 @@
+source /home/rick/Projects/Nonce/smart-agent/build/gdbinit/symbols
+source /home/rick/Projects/Nonce/smart-agent/build/gdbinit/connect

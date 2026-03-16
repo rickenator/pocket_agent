@@ -1,0 +1,22 @@
+# Smart Agent - Python Dependencies
+
+# AI Backend Clients
+openai>=1.0.0  # For Ollama (OpenAI-compatible API)
+
+# Voice Processing
+SpeechRecognition>=3.10.0
+pyaudio>=0.2.14
+
+# Display (for PC testing)
+pillow>=10.0.0
+
+# Web Framework
+fastapi>=0.104.0
+uvicorn>=0.24.0
+
+# Utilities
+pyyaml>=6.0.1
+python-dotenv>=1.0.0
+
+# Async Support
+httpx>=0.25.0

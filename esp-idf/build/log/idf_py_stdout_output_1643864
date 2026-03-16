@@ -1,0 +1,16 @@
+Command: cmake -G Ninja -B /home/rick/Projects/Nonce/esp-idf/build -DPYTHON_DEPS_CHECKED=1 -DPYTHON=/home/rick/.espressif/python_env/idf6.1_py3.13_env/bin/python -DESP_PLATFORM=1 -DCCACHE_ENABLE=False /home/rick/Projects/Nonce/esp-idf
+-- The C compiler identification is GNU 13.3.0
+-- The CXX compiler identification is GNU 13.3.0
+-- The ASM compiler identification is GNU
+-- Found assembler: /usr/bin/cc
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Configuring incomplete, errors occurred!

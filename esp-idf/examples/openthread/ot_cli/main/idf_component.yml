@@ -1,0 +1,8 @@
+## IDF Component Manager Manifest File
+dependencies:
+  espressif/esp_ot_cli_extension:
+    version: "~1.0.0"
+  idf:
+    version: ">=4.1.0"
+  iperf:
+    path: ${IDF_PATH}/examples/common_components/iperf
