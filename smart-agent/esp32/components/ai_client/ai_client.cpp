@@ -18,6 +18,8 @@ AIClient::AIClient()
     , m_memory(nullptr)
     , m_goals(nullptr)
     , m_tools(nullptr)
+    , m_stt(nullptr)
+    , m_tts(nullptr)
     , m_responseType(AI_RESPONSE_TEXT)
     , m_initialized(false)
     , m_agentReady(false)
@@ -49,7 +51,11 @@ esp_err_t AIClient::init()
     return ESP_OK;
 }
 
-esp_err_t AIClient::initAgent(const char* ollamaUrl, const char* model)
+esp_err_t AIClient::initAgent(const char*  ollamaUrl,
+                               const char*  model,
+                               const char*  sttUrl,
+                               const char*  ttsUrl,
+                               AudioDriver* audioDriver)
 {
     if (!m_initialized) {
         esp_err_t err = init();
@@ -84,10 +90,50 @@ esp_err_t AIClient::initAgent(const char* ollamaUrl, const char* model)
     // Register built-in tools
     m_tools->registerBuiltinTools();
 
+    // Initialize STT client (optional)
+    if (sttUrl) {
+        m_stt = new STTClient();
+        if (!m_stt) {
+            ESP_LOGE(TAG, "Out of memory for STTClient");
+            return ESP_ERR_NO_MEM;
+        }
+        m_stt->setServerUrl(sttUrl);
+        err = m_stt->init();
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "STTClient init failed (%s) — voice input disabled",
+                     esp_err_to_name(err));
+            delete m_stt;
+            m_stt = nullptr;
+        } else {
+            ESP_LOGI(TAG, "STTClient ready — url: %s", sttUrl);
+        }
+    }
+
+    // Initialize TTS client (optional)
+    if (ttsUrl && audioDriver) {
+        m_tts = new TTSClient();
+        if (!m_tts) {
+            ESP_LOGE(TAG, "Out of memory for TTSClient");
+            return ESP_ERR_NO_MEM;
+        }
+        m_tts->setServerUrl(ttsUrl);
+        err = m_tts->init(audioDriver);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "TTSClient init failed (%s) — voice output disabled",
+                     esp_err_to_name(err));
+            delete m_tts;
+            m_tts = nullptr;
+        } else {
+            ESP_LOGI(TAG, "TTSClient ready — url: %s", ttsUrl);
+        }
+    }
+
     m_agentReady = true;
-    ESP_LOGI(TAG, "Agent stack ready — Ollama: %s  model: %s",
+    ESP_LOGI(TAG, "Agent stack ready — Ollama: %s  model: %s  stt: %s  tts: %s",
              ollamaUrl ? ollamaUrl : "127.0.0.1:11434",
-             model ? model : "llama2");
+             model     ? model     : "llama2",
+             sttUrl    ? sttUrl    : "none",
+             ttsUrl    ? ttsUrl    : "none");
 
     // Optional: health check (non-fatal if server not yet reachable)
     if (m_ollama->healthCheck() == ESP_OK) {
@@ -195,6 +241,53 @@ esp_err_t AIClient::processAgentQuery(const char* userInput, std::string& respon
     return ESP_OK;
 }
 
+esp_err_t AIClient::processVoiceAudio(const int16_t* pcmData,
+                                       size_t         numSamples,
+                                       int            sampleRate,
+                                       std::string&   response)
+{
+    if (!m_initialized) return ESP_ERR_INVALID_STATE;
+    if (!pcmData || numSamples == 0) return ESP_ERR_INVALID_ARG;
+
+    if (!m_stt) {
+        ESP_LOGE(TAG, "processVoiceAudio: STTClient not configured");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    // Step 1: Speech → Text
+    std::string transcript;
+    esp_err_t err = m_stt->transcribe(pcmData, numSamples, sampleRate, transcript);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "STT transcription failed: %s", esp_err_to_name(err));
+        return err;
+    }
+
+    if (transcript.empty()) {
+        ESP_LOGW(TAG, "STT returned empty transcript — discarding audio");
+        return ESP_ERR_NOT_FOUND;
+    }
+
+    ESP_LOGI(TAG, "Voice transcript: %s", transcript.c_str());
+
+    // Step 2: Text → LLM (with full agent tool-call loop)
+    err = processAgentQuery(transcript.c_str(), response);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Agent query failed: %s", esp_err_to_name(err));
+        return err;
+    }
+
+    // Step 3: LLM response → TTS (optional)
+    if (m_tts && !response.empty()) {
+        esp_err_t ttsErr = m_tts->speak(response, /*blocking=*/false);
+        if (ttsErr != ESP_OK) {
+            // Non-fatal — log and continue; the text response is still valid.
+            ESP_LOGW(TAG, "TTS speak failed: %s", esp_err_to_name(ttsErr));
+        }
+    }
+
+    return ESP_OK;
+}
+
 esp_err_t AIClient::processVoiceCommand(const char* command)
 {
     if (!m_initialized || !command) return ESP_ERR_INVALID_ARG;
@@ -231,6 +324,8 @@ void AIClient::deinit()
     if (m_memory) { m_memory->deinit(); delete m_memory; m_memory = nullptr; }
     if (m_goals)  { delete m_goals;  m_goals  = nullptr; }
     if (m_tools)  { delete m_tools;  m_tools  = nullptr; }
+    if (m_stt)    { m_stt->deinit(); delete m_stt; m_stt = nullptr; }
+    if (m_tts)    { m_tts->deinit(); delete m_tts; m_tts = nullptr; }
     m_initialized = false;
     m_agentReady  = false;
 }
