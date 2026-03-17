@@ -7,7 +7,21 @@ A voice-enabled AI agent built for the Waveshare ESP32-S3 1.75" AMOLED round dis
 ```
 pocket_agent/
 ├── smart-agent/   # Main project code (Python app + ESP32 firmware)
-└── esp-idf/       # ESP-IDF framework (vendored dependency)
+└── esp-idf/       # ESP-IDF v5.2.1 (git submodule)
+```
+
+## Cloning
+
+Clone with submodules to include ESP-IDF:
+
+```bash
+git clone --recurse-submodules https://github.com/rickenator/pocket_agent.git
+```
+
+If you already cloned without `--recurse-submodules`, run:
+
+```bash
+git submodule update --init
 ```
 
 ## Getting Started
