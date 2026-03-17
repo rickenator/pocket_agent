@@ -64,7 +64,9 @@ smart-agent/
     │   ├── display_driver/     # AMOLED SPI driver
     │   ├── voice_driver/       # I2S microphone input
     │   ├── audio_driver/       # I2S speaker output
-    │   └── ai_client/          # HTTP client for Ollama API
+    │   ├── stt_client/         # HTTP STT client (Whisper / Google)
+    │   ├── tts_client/         # HTTP TTS client (Piper / Google)
+    │   └── ai_client/          # Orchestrator: STT → Ollama → TTS
     ├── CMakeLists.txt
     ├── sdkconfig.defaults      # Board-specific KConfig defaults
     └── partitions.csv
@@ -138,7 +140,9 @@ A pure C/C++ ESP-IDF project targeting the Waveshare ESP32-S3:
 | `display_driver` | SPI driver for the 466×466 AMOLED panel |
 | `voice_driver` | I2S microphone capture |
 | `audio_driver` | I2S speaker playback |
-| `ai_client` | HTTP/1.1 streaming client to Ollama on the local network |
+| `stt_client` | HTTP client: sends PCM audio to Whisper / Google STT; returns transcript |
+| `tts_client` | HTTP client: sends text to Piper / Google TTS; plays WAV through `audio_driver` |
+| `ai_client` | Orchestrates STT → Ollama LLM → TTS pipeline; agent tool-call loop |
 
 The firmware communicates with **Ollama** (or any compatible HTTP endpoint) over the local WiFi network — it does **not** bundle the Python app.
 
@@ -174,20 +178,26 @@ SmartAgent: accumulate chunks → full response string
 ### ESP32 Mode
 
 ```
-I2S microphone → PCM audio
+I2S microphone → PCM audio (16 kHz, 16-bit, mono)
     │
     ▼
-(STT on-device or forwarded to host — TBD)
-    │
+STTClient ──── HTTP POST (WAV) ────► Whisper / Google STT server
+    │                                 (e.g. http://192.168.1.251:9000)
+    │  transcript (text string)
     ▼
 ai_client: HTTP POST to Ollama /api/chat
-    │   streams NDJSON response
+    │          (e.g. http://192.168.1.251:11434)
+    │  streams NDJSON response chunks
     ▼
 Parse → extract content chunks
     │
-    ├─► AMOLED display update
+    ├─► AMOLED display update  (streamed, per chunk)
     │
-    └─► I2S speaker / TTS output
+    └─► TTSClient ── HTTP POST (text) ──► Piper / Google TTS server
+              │                            (e.g. http://192.168.1.251:5000)
+              │  WAV audio bytes
+              ▼
+         AudioDriver.writeAudioData() → I2S speaker
 ```
 
 ---
@@ -251,8 +261,8 @@ Ollama server (same local network)
 | Feature | Python Mode | ESP32 Mode |
 |---------|-------------|------------|
 | AI backend | Ollama or Gemini | Ollama (HTTP) |
-| STT | Google Speech API / Whisper | On-device / future |
-| TTS | pyttsx3 / system | I2S speaker |
+| STT | Google Speech API / Whisper | STTClient → Whisper or Google (HTTP) |
+| TTS | pyttsx3 / espeak / macOS `say` | TTSClient → Piper TTS / Google (HTTP) |
 | Display | Simulated (Pillow) or real | Waveshare AMOLED SPI |
 | Deployment | PC / Mac / Linux | Waveshare ESP32-S3 board |
 | WiFi setup | N/A (uses host network) | AP provisioning portal |

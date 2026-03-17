@@ -1,13 +1,21 @@
 """Speech Recognition Module"""
 
+import logging
 import SpeechRecognition as sr
 import os
-from typing import Optional, Callable
+from typing import Optional, Callable, List
 from .mic import MicrophoneManager
+
+logger = logging.getLogger(__name__)
 
 
 class SpeechRecognizer:
-    """Handles speech-to-text conversion"""
+    """Handles speech-to-text conversion.
+
+    Supports two providers selected via config['api']:
+      - 'google'  (default) — Google Cloud Speech Recognition
+      - 'openai'            — OpenAI Whisper (requires openai package)
+    """
 
     def __init__(self, config: dict, mic_manager: MicrophoneManager):
         self.config = config
@@ -67,20 +75,20 @@ class SpeechRecognizer:
                     # Fallback to Google
                     text = self.recognizer.recognize_google(audio, language=self.config.get('language', 'en-US'))
 
-            print(f"Recognized: {text}")
+            logger.info("Recognized: %s", text)
             return text
 
         except sr.WaitTimeoutError:
-            print("No speech detected")
+            logger.debug("No speech detected")
             return None
         except sr.UnknownValueError:
-            print("Could not understand audio")
+            logger.debug("Could not understand audio")
             return None
         except sr.RequestError as e:
-            print(f"API error: {e}")
+            logger.error("STT API error: %s", e)
             return None
         except Exception as e:
-            print(f"Error during speech recognition: {e}")
+            logger.error("Error during speech recognition: %s", e)
             return None
 
     def listen_continuous(self, callback: Callable[[str], None]) -> None:
@@ -122,7 +130,7 @@ class SpeechRecognizer:
             return None
 
         except Exception as e:
-            print(f"Error in continuous listening: {e}")
+            logger.error("Error in continuous listening: %s", e)
             return None
 
     def save_wav(self, audio_data: bytes, filename: str = "output.wav"):
@@ -134,3 +142,62 @@ class SpeechRecognizer:
         """Load WAV file"""
         with open(filename, "rb") as f:
             return f.read()
+
+
+class MockSpeechRecognizer:
+    """Mock speech recognizer for unit tests.
+
+    Replays a pre-configured sequence of transcripts without requiring a
+    microphone, audio hardware, or network connection.  Useful for testing
+    the STT → LLM → TTS pipeline in CI or on machines without audio devices.
+
+    Usage::
+
+        recognizer = MockSpeechRecognizer(
+            responses=["What time is it?", "Tell me a joke", None]
+        )
+        text = recognizer.listen()   # → "What time is it?"
+        text = recognizer.listen()   # → "Tell me a joke"
+        text = recognizer.listen()   # → None  (simulates silence / no speech)
+
+    The recognizer loops back to the first response once the list is exhausted
+    if ``loop=True`` (the default), or returns ``None`` indefinitely.
+    """
+
+    def __init__(self, responses: List[Optional[str]] = None, loop: bool = True):
+        self.responses = responses or ["Hello, this is a mock response."]
+        self.loop = loop
+        self._index = 0
+
+    def listen(self, timeout: int = None) -> Optional[str]:  # noqa: ARG002
+        """Return the next pre-configured transcript."""
+        if self._index >= len(self.responses):
+            if self.loop:
+                self._index = 0
+            else:
+                return None
+        text = self.responses[self._index]
+        self._index += 1
+        if text is not None:
+            logger.info("[MockSTT] Returning: %s", text)
+        else:
+            logger.debug("[MockSTT] Returning None (simulated silence)")
+        return text
+
+    def listen_continuous(self, callback: Callable[[str], None]) -> None:
+        """Replay all non-None responses, then stop."""
+        while True:
+            text = self.listen()
+            if text is None:
+                break
+            callback(text)
+
+    def listen_with_stop(self, stop_event) -> Optional[str]:
+        """Return the next transcript, or None if stop_event is set."""
+        if stop_event.is_set():
+            return None
+        return self.listen()
+
+    def reset(self):
+        """Reset the replay index to the beginning."""
+        self._index = 0

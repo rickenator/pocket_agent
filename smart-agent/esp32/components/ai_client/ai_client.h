@@ -8,6 +8,8 @@
 #include "memory_manager.h"
 #include "goal_manager.h"
 #include "tool_registry.h"
+#include "../stt_client/stt_client.h"
+#include "../tts_client/tts_client.h"
 
 // AI response types
 typedef enum {
@@ -17,7 +19,26 @@ typedef enum {
     AI_RESPONSE_TOOL_CALL,
 } ai_response_type_t;
 
-// AI client — acts as the top-level agent orchestrator
+// AI client — acts as the top-level agent orchestrator.
+//
+// Full speech-to-response pipeline (ESP32 mode):
+//
+//   I2S mic  →  VoiceDriver (PCM)
+//                   │
+//                   ▼
+//              STTClient ──── POST audio ──► Whisper / Google STT
+//                   │                         (e.g. 192.168.1.251:9000)
+//                   │  transcript (text)
+//                   ▼
+//              OllamaClient ── POST /api/chat ─► Ollama LLM server
+//                   │                             (e.g. 192.168.1.251:11434)
+//                   │  LLM response (text)
+//                   ▼
+//              TTSClient ──── POST text ──────► Piper / Google TTS
+//                   │                            (e.g. 192.168.1.251:5000)
+//                   │  WAV audio
+//                   ▼
+//              AudioDriver  →  I2S speaker
 class AIClient {
 public:
     AIClient();
@@ -26,8 +47,17 @@ public:
     esp_err_t init();
     void deinit();
 
-    // Full agent initialization: connects Ollama, memory, goals, tools
-    esp_err_t initAgent(const char* ollamaUrl, const char* model);
+    // Full agent initialisation: connects Ollama, memory, goals, tools, STT and TTS.
+    //   ollamaUrl  — e.g. "http://192.168.1.251:11434"
+    //   model      — e.g. "llama2" or "mistral"
+    //   sttUrl     — e.g. "http://192.168.1.251:9000"  (pass nullptr to skip STT)
+    //   ttsUrl     — e.g. "http://192.168.1.251:5000"  (pass nullptr to skip TTS)
+    //   audioDriver — AudioDriver instance for I2S speaker output (may be nullptr)
+    esp_err_t initAgent(const char*  ollamaUrl,
+                        const char*  model,
+                        const char*  sttUrl      = nullptr,
+                        const char*  ttsUrl      = nullptr,
+                        AudioDriver* audioDriver = nullptr);
 
     // Agent query: implements the full tool-call loop
     //   1. Add userInput to memory
@@ -37,7 +67,19 @@ public:
     //   5. Repeat until final text response; save to memory
     esp_err_t processAgentQuery(const char* userInput, std::string& response);
 
-    // Legacy interface — delegate to processAgentQuery
+    // Full voice pipeline: PCM audio → STT → Ollama → TTS → I2S speaker.
+    //   pcmData    — signed 16-bit PCM samples (mono)
+    //   numSamples — number of samples in pcmData
+    //   sampleRate — capture sample rate in Hz (e.g. 16 000)
+    //   response   — [out] LLM text response; also spoken via TTSClient if configured
+    //
+    // Returns ESP_OK on success; any sub-step failure propagates its esp_err_t.
+    esp_err_t processVoiceAudio(const int16_t* pcmData,
+                                size_t         numSamples,
+                                int            sampleRate,
+                                std::string&   response);
+
+    // Legacy interface — delegates to processAgentQuery
     esp_err_t processVoiceCommand(const char* command);
     esp_err_t processTextQuery(const char* query);
 
@@ -50,12 +92,16 @@ public:
     MemoryManager* getMemory()  { return m_memory;  }
     GoalManager*   getGoals()   { return m_goals;   }
     ToolRegistry*  getTools()   { return m_tools;   }
+    STTClient*     getSTT()     { return m_stt;     }
+    TTSClient*     getTTS()     { return m_tts;     }
 
 private:
     OllamaClient*  m_ollama;
     MemoryManager* m_memory;
     GoalManager*   m_goals;
     ToolRegistry*  m_tools;
+    STTClient*     m_stt;
+    TTSClient*     m_tts;
 
     std::string        m_lastResponse;
     ai_response_type_t m_responseType;
