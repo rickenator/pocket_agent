@@ -1,12 +1,27 @@
 #include "ai_client.h"
-#include <stdio.h>
-#include <string.h>
+#include "esp_log.h"
+#include <cstring>
+
+static const char* TAG = "AI_CLIENT";
+
+// System prompt template — tool descriptions are appended at runtime.
+static const char* BASE_SYSTEM_PROMPT =
+    "You are a helpful AI assistant running on an ESP32-S3 smart device. "
+    "You can call tools to perform actions. When you want to use a tool, "
+    "respond ONLY with valid JSON in this format (no other text):\n"
+    "{\"tool_call\":{\"name\":\"<tool_name>\",\"parameters\":{<params>}}}\n"
+    "When you have a final answer for the user, respond in plain text.\n\n"
+    "Available tools:\n";
 
 AIClient::AIClient()
-    : m_initialized(false)
+    : m_ollama(nullptr)
+    , m_memory(nullptr)
+    , m_goals(nullptr)
+    , m_tools(nullptr)
+    , m_responseType(AI_RESPONSE_TEXT)
+    , m_initialized(false)
+    , m_agentReady(false)
 {
-    memset(m_response, 0, sizeof(m_response));
-    m_responseType = AI_RESPONSE_TEXT;
 }
 
 AIClient::~AIClient()
@@ -16,75 +31,206 @@ AIClient::~AIClient()
 
 esp_err_t AIClient::init()
 {
-    if (m_initialized) {
-        return ESP_OK;
+    if (m_initialized) return ESP_OK;
+
+    m_ollama = new OllamaClient();
+    m_memory = new MemoryManager();
+    m_goals  = new GoalManager();
+    m_tools  = new ToolRegistry();
+
+    if (!m_ollama || !m_memory || !m_goals || !m_tools) {
+        ESP_LOGE(TAG, "Out of memory allocating agent components");
+        deinit();
+        return ESP_ERR_NO_MEM;
     }
 
     m_initialized = true;
-    printf("[AI] AI client initialized\n");
+    ESP_LOGI(TAG, "AIClient initialized (call initAgent() to connect to Ollama)");
     return ESP_OK;
 }
 
-void AIClient::deinit()
+esp_err_t AIClient::initAgent(const char* ollamaUrl, const char* model)
 {
-    if (m_initialized) {
-        printf("[AI] AI client deinitialized\n");
+    if (!m_initialized) {
+        esp_err_t err = init();
+        if (err != ESP_OK) return err;
     }
-    m_initialized = false;
+
+    // Initialize Ollama client
+    m_ollama->setServerUrl(ollamaUrl ? ollamaUrl : "http://127.0.0.1:11434");
+    m_ollama->setModel(model ? model : "llama2");
+    esp_err_t err = m_ollama->init();
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "OllamaClient init failed: %s", esp_err_to_name(err));
+        return err;
+    }
+
+    // Initialize memory (NVS)
+    err = m_memory->init();
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "MemoryManager init failed (%s) — continuing without persistence",
+                 esp_err_to_name(err));
+        // Non-fatal — continue without NVS persistence
+    } else {
+        m_memory->loadHistory(); // Load any saved conversation history
+    }
+
+    // Initialize goal manager
+    err = m_goals->init(m_memory);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "GoalManager init failed: %s", esp_err_to_name(err));
+    }
+
+    // Register built-in tools
+    m_tools->registerBuiltinTools();
+
+    m_agentReady = true;
+    ESP_LOGI(TAG, "Agent stack ready — Ollama: %s  model: %s",
+             ollamaUrl ? ollamaUrl : "127.0.0.1:11434",
+             model ? model : "llama2");
+
+    // Optional: health check (non-fatal if server not yet reachable)
+    if (m_ollama->healthCheck() == ESP_OK) {
+        ESP_LOGI(TAG, "Ollama server reachable");
+    } else {
+        ESP_LOGW(TAG, "Ollama server not reachable — requests will be retried on demand");
+    }
+
+    return ESP_OK;
+}
+
+std::string AIClient::buildSystemPrompt() const
+{
+    std::string prompt = BASE_SYSTEM_PROMPT;
+    if (m_tools) {
+        prompt += m_tools->getToolDescriptionsForPrompt();
+    }
+    return prompt;
+}
+
+esp_err_t AIClient::processAgentQuery(const char* userInput, std::string& response)
+{
+    if (!m_initialized || !userInput) return ESP_ERR_INVALID_ARG;
+
+    if (!m_agentReady) {
+        ESP_LOGW(TAG, "Agent not fully initialized — call initAgent() first");
+        response = "Agent not ready. Please check Ollama server connection.";
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    ESP_LOGI(TAG, "Agent query: %s", userInput);
+
+    // Build system prompt with tool descriptions
+    std::string systemPrompt = buildSystemPrompt();
+
+    // Set (or refresh) the system prompt in conversation history
+    m_ollama->addSystemPrompt(systemPrompt.c_str());
+
+    // Add user input to persistent memory
+    if (m_memory) m_memory->addTurn("user", userInput);
+
+    // Agent loop: up to MAX_TOOL_ITERATIONS tool calls before forcing a final answer
+    std::string llmResponse;
+    std::string currentInput = userInput;
+    int iteration = 0;
+
+    while (iteration < MAX_TOOL_ITERATIONS) {
+        ++iteration;
+
+        esp_err_t err = m_ollama->createChatCompletion(currentInput.c_str(), llmResponse);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "LLM request failed: %s", esp_err_to_name(err));
+            response = "Error communicating with AI server.";
+            m_responseType = AI_RESPONSE_TEXT;
+            return err;
+        }
+
+        // Check if the LLM wants to call a tool
+        if (m_tools && m_tools->hasToolCall(llmResponse.c_str())) {
+            m_responseType = AI_RESPONSE_TOOL_CALL;
+            std::string toolName   = m_tools->extractToolName(llmResponse.c_str());
+            std::string toolParams = m_tools->extractToolParams(llmResponse.c_str());
+
+            ESP_LOGI(TAG, "Tool call: %s  params: %s",
+                     toolName.c_str(), toolParams.c_str());
+
+            ToolResult result = m_tools->executeTool(toolName.c_str(), toolParams.c_str());
+
+            // Build tool result message to feed back to the LLM
+            std::string toolResultMsg;
+            if (result.success) {
+                toolResultMsg = "Tool '" + toolName + "' result: " + result.output;
+            } else {
+                toolResultMsg = "Tool '" + toolName + "' failed: " + result.error;
+            }
+
+            ESP_LOGI(TAG, "Tool result: %s", toolResultMsg.c_str());
+
+            // Record tool result in persistent memory for tracking.
+            // Do NOT call m_ollama->addToHistory here — createChatCompletion will
+            // append the tool result as a "user" turn in buildMessagesJson automatically.
+            if (m_memory) m_memory->addTurn("tool", toolResultMsg.c_str());
+
+            // Next iteration: feed the tool result back to the LLM as the new prompt
+            currentInput = toolResultMsg;
+        } else {
+            // Final text response — no more tool calls
+            break;
+        }
+    }
+
+    response = llmResponse;
+    m_lastResponse = llmResponse;
+    m_responseType = AI_RESPONSE_TEXT;
+
+    // Save assistant response to memory
+    if (m_memory) {
+        m_memory->addTurn("assistant", llmResponse.c_str());
+        m_memory->saveHistory(); // Persist (best-effort)
+    }
+
+    ESP_LOGI(TAG, "Agent response (%u chars): %.80s%s",
+             (unsigned)response.size(), response.c_str(),
+             response.size() > 80 ? "..." : "");
+    return ESP_OK;
 }
 
 esp_err_t AIClient::processVoiceCommand(const char* command)
 {
-    if (!m_initialized || !command) {
-        return ESP_ERR_INVALID_ARG;
+    if (!m_initialized || !command) return ESP_ERR_INVALID_ARG;
+
+    std::string response;
+    esp_err_t err = processAgentQuery(command, response);
+    if (err == ESP_OK) {
+        m_responseType = AI_RESPONSE_ACTION;
     }
-
-    printf("[AI] Processing voice command: %s\n", command);
-
-    // Simulate AI processing
-    const char* responses[] = {
-        "Processing voice command...",
-        "Analyzing command...",
-        "Executing action..."
-    };
-
-    const char* response = responses[rand() % 3];
-    strncpy(m_response, response, sizeof(m_response) - 1);
-    m_responseType = AI_RESPONSE_ACTION;
-    m_response[sizeof(m_response) - 1] = '\0';
-
-    return ESP_OK;
+    return err;
 }
 
 esp_err_t AIClient::processTextQuery(const char* query)
 {
-    if (!m_initialized || !query) {
-        return ESP_ERR_INVALID_ARG;
-    }
+    if (!m_initialized || !query) return ESP_ERR_INVALID_ARG;
 
-    printf("[AI] Processing text query: %s\n", query);
-
-    // Simulate AI processing
-    const char* responses[] = {
-        "Searching database...",
-        "Generating response...",
-        "Query complete"
-    };
-
-    const char* response = responses[rand() % 3];
-    strncpy(m_response, response, sizeof(m_response) - 1);
-    m_responseType = AI_RESPONSE_TEXT;
-    m_response[sizeof(m_response) - 1] = '\0';
-
-    return ESP_OK;
+    std::string response;
+    return processAgentQuery(query, response);
 }
 
 const char* AIClient::getResponse()
 {
-    return m_response;
+    return m_lastResponse.c_str();
 }
 
 ai_response_type_t AIClient::getResponseType()
 {
     return m_responseType;
+}
+
+void AIClient::deinit()
+{
+    if (m_ollama) { m_ollama->deinit(); delete m_ollama; m_ollama = nullptr; }
+    if (m_memory) { m_memory->deinit(); delete m_memory; m_memory = nullptr; }
+    if (m_goals)  { delete m_goals;  m_goals  = nullptr; }
+    if (m_tools)  { delete m_tools;  m_tools  = nullptr; }
+    m_initialized = false;
+    m_agentReady  = false;
 }
