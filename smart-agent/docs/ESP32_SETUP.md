@@ -16,24 +16,35 @@ The display module typically has all connections onboard, but verify:
 - Touch interface (if supported)
 - Microphone/Speaker connections
 
-## ESP-IDF Installation
+## ESP-IDF Setup
+
+This repository includes ESP-IDF v5.2.1 as a **git submodule**. Initialise it
+before building:
+
+```bash
+git submodule update --init
+```
+
+If you cloned with `--recurse-submodules` the submodule is already present.
+
+After the submodule is initialised, install the ESP-IDF toolchain once:
 
 ### Linux
 ```bash
-# Install dependencies
+# Install system dependencies
 sudo apt-get install git flex bison gperf python3 python3-pip cmake ninja-build ccache libffi-dev libssl-dev dfu-util libusb-1.0-0
 
-# Clone ESP-IDF
-git clone --recursive https://github.com/espressif/ESP-IDF.git
-cd ESP-IDF
-./install.sh esp32s3
+# Install the ESP-IDF tools (run from the repo root)
+./esp-idf/install.sh esp32s3
 
-# Source the environment
-source export.sh
+# Source the environment (required before every build session)
+source ./esp-idf/export.sh
 ```
 
 ### Windows
-Download from [ESP-IDF Download Page](https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/get-started/index.html#install-esp-idf)
+Run `esp-idf\install.bat esp32s3` from the repository root, or download the
+all-in-one installer from the
+[ESP-IDF Download Page](https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/get-started/index.html#install-esp-idf)
 
 ## Waveshare Display Driver
 

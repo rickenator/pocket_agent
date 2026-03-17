@@ -1,7 +1,0 @@
-Command: cmake -G Ninja -B /home/rick/Projects/Nonce/esp-idf/build -DPYTHON_DEPS_CHECKED=1 -DPYTHON=/home/rick/.espressif/python_env/idf6.1_py3.13_env/bin/python -DESP_PLATFORM=1 -DCCACHE_ENABLE=False /home/rick/Projects/Nonce/esp-idf
-CMake Error at CMakeLists.txt:5 (message):
-  Current directory '/home/rick/Projects/Nonce/esp-idf' is not buildable.
-  Change directories to one of the example projects in
-  '/home/rick/Projects/Nonce/esp-idf/examples' and try again.
-
-
