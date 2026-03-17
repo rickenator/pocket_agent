@@ -280,10 +280,13 @@ I2S Microphone (PCM audio, 16 kHz)
 | `tts_client` | HTTP client → TTS service; plays WAV via `audio_driver` |
 | `audio_driver` | I2S speaker playback |
 
+## Future Enhancements
 
+The following capabilities are planned for future releases.
+See [`/TODO.md`](../TODO.md) for the full project roadmap.
 
-- [ ] Multiple AI model support
-- [ ] Context-aware conversations
+- [ ] Multiple AI model support (simultaneous backends)
+- [ ] Context-aware conversations with persistent memory
 - [ ] Calendar integration
 - [ ] Weather services
 - [ ] Home automation control
@@ -300,7 +303,10 @@ This project is open source and available for educational and personal use.
 
 ## Contributing
 
-Contributions are welcome! Areas of focus:
+Contributions are welcome! Please read [`CONTRIBUTING.md`](../CONTRIBUTING.md)
+for guidelines on coding standards, the PR process, and how to report bugs.
+
+Areas of focus:
 - AI backend improvements
 - Display driver enhancements
 - Voice processing optimizations

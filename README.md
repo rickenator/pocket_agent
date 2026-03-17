@@ -36,7 +36,8 @@ All project documentation lives in **[smart-agent/](smart-agent/README.md)**.
 - **[ESP32 Setup](smart-agent/docs/ESP32_SETUP.md)** — Firmware build and flash guide
 - **[AI Client](smart-agent/esp32/docs/AI_CLIENT.md)** — STT / Ollama / TTS pipeline details
 - **[WiFi Provisioning](smart-agent/WIFI_PROVISIONING.md)** — Network setup details
-- **[TODO](smart-agent/TODO.md)** — Known bugs and roadmap
+- **[TODO](TODO.md)** — Project roadmap and planned features
+- **[Contributing](CONTRIBUTING.md)** — How to contribute to this project
 
 ## Speech Processing Overview
 
