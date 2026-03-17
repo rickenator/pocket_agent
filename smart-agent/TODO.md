@@ -42,52 +42,52 @@ Findings from the full project audit. Items are grouped by priority. File paths 
 
 - [x] **Docstring corruption in `test_agent.py`** (`test_agent.py` line 106)
   `"""Test 3: Code generation queryhaupt"""` — "queryhaupt" is a corruption. Fixed to `"""Test 3: Code generation query"""`.
-- [ ] **`settings.yaml` committed with placeholder API key** (`config/settings.yaml`)
-  File contains `api_key: "YOUR_GEMINI_API_KEY"`. Only `settings.example.yaml` should be committed; `settings.yaml` should be in `.gitignore`.
-- [ ] **`settings.yaml` sets `ai_backend: "gemini"` but README defaults to Ollama** (`config/settings.yaml`)
-  Inconsistency between committed config and documentation. Align config default with Ollama as documented.
-- [ ] **`settings.yaml` references model `glm-4.7-flash`** but docs say `llama2` or `mistral`
-  Non-standard model name in committed config; update to match documented defaults.
+- [x] **`settings.yaml` committed with placeholder API key** (`config/settings.yaml`)
+  File contains `api_key: "YOUR_GEMINI_API_KEY"`. Only `settings.example.yaml` should be committed; `settings.yaml` should be in `.gitignore`. Fixed — removed from git tracking.
+- [x] **`settings.yaml` sets `ai_backend: "gemini"` but README defaults to Ollama** (`config/settings.yaml`)
+  Inconsistency between committed config and documentation. Fixed — `settings.yaml` removed from tracking.
+- [x] **`settings.yaml` references model `glm-4.7-flash`** but docs say `llama2` or `mistral`
+  Non-standard model name in committed config. Fixed — `settings.yaml` removed from tracking.
 - [x] **Cyrillic corruption in `PROJECT_SUMMARY.md` line 22**
   `├──анныйvoice/` → `├── voice/`. Fixed.
 - [x] **README placeholder URLs** (`README.md` lines 276–277 and line 81)
   `https://github.com/your-repo/...` replaced with `rickenator/pocket_agent`. Fixed. Clone URL also fixed.
-- [ ] **No error recovery in main loop** (`main.py`)
-  If AI fails mid-stream, no retry or fallback logic. Add try/except around the AI chat loop.
-- [ ] **No logging framework** — `print()` used throughout; replace with Python `logging` module for production.
+- [x] **No error recovery in main loop** (`main.py`)
+  If AI fails mid-stream, no retry or fallback logic. Fixed — added try/except around the AI chat loop in both `run()` and `run_continuous()`.
+- [x] **No logging framework** — `print()` used throughout; replace with Python `logging` module for production. Fixed — replaced all `print()` calls with `logger.*()` and configured logging from config `app.log_level`.
 
 ---
 
 ## 🟢 Lower Priority / Housekeeping
 
-- [ ] **`__pycache__` directories committed** (`src/ai/__pycache__/`, `src/ui/__pycache__/`)
-  Add `__pycache__/` and `*.pyc` to `.gitignore` and remove from tracking.
-- [ ] **`build/` directories committed** (`smart-agent/build/`, `smart-agent/esp32/build/`)
-  Generated build artifacts should not be in version control.
-- [ ] **`sdkconfig` and `sdkconfig.old` committed** (`smart-agent/sdkconfig`, `smart-agent/esp32/sdkconfig`, `smart-agent/esp32/sdkconfig.old`)
-  Only `sdkconfig.defaults` should be committed.
-- [ ] **`smart-agent/sdkconfig` at wrong level** — should only exist inside `smart-agent/esp32/`.
-- [ ] **Duplicate `WIFI_PROVISIONING.md`** — `smart-agent/` and `smart-agent/esp32/` both have one. Consolidate or cross-link.
-- [ ] **Duplicate `PROJECT_SUMMARY.md`** — same issue.
-- [ ] **Duplicate quickstart docs** — `docs/QUICK_START.md` and `esp32/QUICKSTART.md`. Consolidate.
-- [ ] **`smart-agent/CMakeLists.txt` duplicates `smart-agent/esp32/CMakeLists.txt`** — remove or consolidate.
+- [x] **`__pycache__` directories committed** (`src/ai/__pycache__/`, `src/ui/__pycache__/`)
+  Add `__pycache__/` and `*.pyc` to `.gitignore` and remove from tracking. Fixed — `.gitignore` already has the rule; files removed from tracking.
+- [x] **`build/` directories committed** (`smart-agent/build/`, `smart-agent/esp32/build/`)
+  Generated build artifacts should not be in version control. Fixed — removed from git tracking.
+- [x] **`sdkconfig` and `sdkconfig.old` committed** (`smart-agent/sdkconfig`, `smart-agent/esp32/sdkconfig`, `smart-agent/esp32/sdkconfig.old`)
+  Only `sdkconfig.defaults` should be committed. Fixed — removed from git tracking.
+- [x] **`smart-agent/sdkconfig` at wrong level** — should only exist inside `smart-agent/esp32/`. Fixed — removed from git tracking.
+- [x] **Duplicate `WIFI_PROVISIONING.md`** — `smart-agent/` and `smart-agent/esp32/` both have one. Consolidate or cross-link. Fixed — `smart-agent/WIFI_PROVISIONING.md` now redirects to `esp32/WIFI_PROVISIONING.md`.
+- [x] **Duplicate `PROJECT_SUMMARY.md`** — same issue. Fixed — `smart-agent/esp32/PROJECT_SUMMARY.md` now redirects to `../PROJECT_SUMMARY.md`.
+- [x] **Duplicate quickstart docs** — `docs/QUICK_START.md` and `esp32/QUICKSTART.md`. Consolidate. Fixed — `esp32/QUICKSTART.md` now redirects to `../docs/QUICK_START.md`.
+- [x] **`smart-agent/CMakeLists.txt` duplicates `smart-agent/esp32/CMakeLists.txt`** — remove or consolidate. Fixed — `smart-agent/CMakeLists.txt` deleted.
 - [ ] **`base/home/` directory purpose undocumented** — document or remove.
 - [ ] **`esp-idf/` is a vendored full copy of ESP-IDF** — should be a git submodule or rely on the system ESP-IDF installation.
-- [ ] **No root-level `.gitignore`** — Created (see `.gitignore`).
-- [ ] **No root-level `README.md`** — Created (see `README.md`).
-- [ ] **README mentions `cp config/settings.example.yaml config/settings.yaml`** but `settings.yaml` is already committed — clarify instructions.
+- [x] **No root-level `.gitignore`** — Created (see `.gitignore`).
+- [x] **No root-level `README.md`** — Created (see `README.md`).
+- [x] **README mentions `cp config/settings.example.yaml config/settings.yaml`** but `settings.yaml` is already committed — clarify instructions. Fixed — `settings.yaml` removed from tracking.
 
 ---
 
 ## 🔵 Missing / Future Enhancements
 
-- [ ] **`google-generativeai` not in `requirements.txt`** — add if using the official Python SDK for Gemini.
-- [ ] **`pyttsx3` not in `requirements.txt`** — add if using system TTS.
+- [x] **`google-generativeai` not in `requirements.txt`** — add if using the official Python SDK for Gemini. Fixed — added `google-generativeai>=0.3.0`.
+- [x] **`pyttsx3` not in `requirements.txt`** — add if using system TTS. Fixed — added `pyttsx3>=2.90`.
 - [ ] **No conversation history management** — neither Ollama nor Gemini backends persist conversation state between calls. Implement session context management.
 - [ ] **No CI/CD pipeline** — add GitHub Actions for linting and tests.
 - [ ] **No `ARCHITECTURE.md`** — Created (see `ARCHITECTURE.md`).
 - [ ] **No `CHANGELOG.md`** — create when releases begin.
-- [ ] **No `LICENSE` file** at repo root or `smart-agent/` level (only in `esp-idf/`).
+- [x] **No `LICENSE` file** at repo root or `smart-agent/` level (only in `esp-idf/`). Fixed — MIT LICENSE file added at repo root.
 - [ ] **Calendar integration**
 - [ ] **Weather services**
 - [ ] **Smart home control**

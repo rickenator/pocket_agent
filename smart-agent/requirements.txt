@@ -2,10 +2,12 @@
 
 # AI Backend Clients
 openai>=1.0.0  # For Ollama (OpenAI-compatible API)
+google-generativeai>=0.3.0  # For Gemini cloud API
 
 # Voice Processing
 SpeechRecognition>=3.10.0
 pyaudio>=0.2.14
+pyttsx3>=2.90  # Text-to-speech engine
 
 # Display (for PC testing)
 pillow>=10.0.0
