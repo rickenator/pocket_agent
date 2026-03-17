@@ -120,22 +120,25 @@ Key characteristics of an autonomous agent:
 
 | Capability | Current Status | Agent Readiness |
 |------------|----------------|-----------------|
-| Voice Recognition | ✅ Simulation | Basic |
-| Text-to-Speech | ❌ Not Implemented | Missing |
+| Voice Recognition | ✅ Implemented (Google STT + Whisper HTTP) | ✅ Complete |
+| Text-to-Speech | ✅ Implemented (Piper HTTP + system fallback) | ✅ Complete |
 | WiFi Management | ✅ Complete | ✅ Complete |
 | Web Interface | ✅ Provisioning | ✅ Basic |
-| LLM Integration | ⚠️ Simulation | 🚧 In Progress |
-| Model Selection | ❌ Not Implemented | Missing |
+| LLM Integration | ✅ Implemented (Ollama streaming + tool loop) | ✅ Complete |
+| Model Selection | ✅ Implemented (Ollama + Gemini backends) | ✅ Complete |
 | Display Output | ⚠️ Simulation | 🚧 Basic |
 | High-Res Display | ❌ Not Implemented | Missing |
 | Touch Screen | ⚠️ Simulation | 🚧 Basic |
 | Avatar System | ❌ Not Implemented | Missing |
 | Push-to-Talk | ❌ Not Implemented | Missing |
 | Function Button | ⚠️ Simulation | 🚧 Basic |
-| Persistent Storage | ❌ Not Implemented | Missing |
-| Tool Use | ❌ Not Implemented | Missing |
-| Goal Management | ❌ Not Implemented | Missing |
-| Action Execution | ❌ Not Implemented | Missing |
+| Persistent Storage | ✅ Implemented (NVS MemoryManager) | ✅ Complete |
+| Tool Use | ✅ Implemented (ToolRegistry, 5 built-in tools) | ✅ Complete |
+| Goal Management | ✅ Implemented (GoalManager, subtask execution) | ✅ Complete |
+| Action Execution | 🚧 In Progress (AI agent loop, voice pipeline) | 🚧 Basic |
+| Wake-Word Detection | ✅ Implemented (WakeWordDetector, configurable) | ✅ Complete |
+| STT Fallback | ✅ Implemented (Whisper → Google STT) | ✅ Complete |
+| TTS Fallback | ✅ Implemented (Piper → system TTS) | ✅ Complete |
 | Sensor Integration | ❌ Not Implemented | Missing |
 
 ## Phase 1: Foundation (Weeks 1-2)
@@ -149,12 +152,12 @@ Key characteristics of an autonomous agent:
   - Agent state
 
 **Tasks:**
-- [ ] Create `MemoryManager` component
-- [ ] Implement NVS wrapper for key-value storage
-- [ ] Add JSON serialization for complex data
-- [ ] Implement memory persistence on shutdown
+- [x] Create `MemoryManager` component
+- [x] Implement NVS wrapper for key-value storage
+- [x] Add JSON serialization for complex data
+- [x] Implement memory persistence on shutdown
 
-**Deliverable:** NVS-based memory system with save/load capabilities
+**Deliverable:** NVS-based memory system with save/load capabilities ✅
 
 ### 1.2 Implement Text-to-Speech (TTS)
 - Add TTS for voice responses
@@ -162,12 +165,12 @@ Key characteristics of an autonomous agent:
 - Volume and speed control
 
 **Tasks:**
-- [ ] Integrate ESP-SR or external TTS service
-- [ ] Add TTS API to AudioDriver
-- [ ] Implement async TTS queue
-- [ ] Add speech synthesis callback
+- [x] Integrate external TTS service (Piper HTTP, Google Cloud TTS, ElevenLabs, eSpeak)
+- [x] Add TTS API via TTSClient (feeds WAV to AudioDriver)
+- [x] Implement retry logic and timeout handling
+- [x] Add speech synthesis with blocking/non-blocking modes
 
-**Deliverable:** TTS system with queue management
+**Deliverable:** TTS system with multi-provider support and fallback ✅
 
 ### 1.3 Complete LLM Integration
 - Finish Ollama HTTP client implementation
@@ -177,14 +180,14 @@ Key characteristics of an autonomous agent:
 - Add multi-source model support (Ollama + Cloud APIs)
 
 **Tasks:**
-- [ ] Implement esp_http_client wrapper
-- [ ] Add cJSON JSON parsing
-- [ ] Implement SSE streaming parser
-- [ ] Add error handling and recovery
-- [ ] Add model selection API supporting multiple sources
-- [ ] Integrate Ollama model listing and selection
-- [ ] Add free-tier cloud model support (Gemini, NVIDIA)
-- [ ] Implement model provider abstraction layer
+- [x] Implement esp_http_client wrapper
+- [x] Add cJSON JSON parsing
+- [x] Implement NDJSON streaming parser (for Ollama /api/chat stream:true)
+- [x] Add error handling and recovery (retry with exponential back-off)
+- [x] Add model selection API (OllamaClient setModel + Python OllamaBackend/GeminiBackend)
+- [x] Integrate Ollama model listing (OllamaClient::listModels)
+- [x] Add free-tier cloud model support (Gemini via Python GeminiBackend)
+- [x] Implement model provider abstraction layer (AIBackend base class)
 - [ ] Add model comparison and selection UI
 
 **Model Sources:**
@@ -221,12 +224,12 @@ Key characteristics of an autonomous agent:
 - Add goal priority queue
 
 **Tasks:**
-- [ ] Define goal types (short-term, long-term)
-- [ ] Create `GoalManager` component
-- [ ] Implement goal execution loop
-- [ ] Add goal persistence
+- [x] Define goal types (GoalStatus, GoalPriority, SubTask, Goal structs)
+- [x] Create `GoalManager` component
+- [x] Implement goal execution loop (executeNextSubtask via ToolRegistry)
+- [x] Add goal persistence (saveGoals/loadGoals via MemoryManager NVS)
 
-**Deliverable:** Goal management system with execution framework
+**Deliverable:** Goal management system with execution framework ✅
 
 ### 1.5 Push-to-Talk Implementation
 - Implement function button as push-to-talk for battery saving
@@ -242,6 +245,7 @@ Key characteristics of an autonomous agent:
 - [ ] Capture voice commands without screen wake-up
 - [ ] Add button press debouncing
 - [ ] Implement battery-saving sleep modes
+- [x] Wake-word detection in Python layer (WakeWordDetector — configurable keywords, "Hey Buddy")
 
 **Battery Savings:**
 - **Sleep Mode**: Battery drain ~0.1mA (vs ~20mA idle)
@@ -282,15 +286,15 @@ Key characteristics of an autonomous agent:
    - Network diagnostics
 
 **Tasks:**
-- [ ] Create `Tool` base class
-- [ ] Define tool types and interfaces
-- [ ] Implement tool registry
-- [ ] Add tool execution framework
-- [ ] Implement web search tool
-- [ ] Implement weather tool
-- [ ] Implement GPIO control tool
+- [x] Create `ToolDefinition` struct and `ToolResult` type
+- [x] Define tool types and interfaces
+- [x] Implement tool registry (ToolRegistry)
+- [x] Add tool execution framework (executeTool, hasToolCall, JSON parse)
+- [x] Implement built-in tools: get_time, get_system_info, get_weather (stub), set_reminder, control_gpio
+- [ ] Implement web search tool (external HTTP)
+- [ ] Implement real weather API tool
 
-**Deliverable:** Extensible tool framework with working examples
+**Deliverable:** Extensible tool framework with 5 built-in tools ✅
 
 ### 2.2 Sensor Integration
 - Add sensor interfaces

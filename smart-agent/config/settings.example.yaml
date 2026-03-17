@@ -53,6 +53,20 @@ voice:
   chunk_size: 1024
   energy_threshold: 1000  # Voice activity detection
   silence_timeout: 3  # Seconds of silence before stop
+  # Provider for speech recognition (used by Python SpeechRecognizer)
+  provider: "whisper"           # 'whisper' | 'google'
+  whisper_url: "http://localhost:9000"
+  language: "en-US"
+  timeout_ms: 10000
+  # Wake-word detection: uncomment to enable
+  # wake_words:
+  #   - "hey buddy"
+  #   - "hey agent"
+  #   - "ok agent"
+  # Provider for text-to-speech (used by Python TextToSpeech)
+  tts_provider: "piper"         # 'piper' | 'system'
+  piper_url: "http://localhost:5000"
+  voice: "en_US-lessac-medium"
 
 # Display Configuration
 display:

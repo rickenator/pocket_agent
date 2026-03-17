@@ -93,10 +93,10 @@ Findings from the full project audit. Items are grouped by priority. File paths 
 - [x] **ESP32 `tts_client` component** — `components/tts_client/tts_client.h` added. Supports Piper TTS HTTP server, eSpeak-ng HTTP, Google Cloud TTS, and ElevenLabs. Feeds WAV audio to `AudioDriver` for I2S speaker playback.
 - [x] **`ai_client` STT/TTS pipeline** — `AIClient::initAgent()` extended to accept STT and TTS server URLs and an `AudioDriver` pointer. New `processVoiceAudio()` method chains STT → Ollama → TTS in a single call.
 - [x] **Python `MockSpeechRecognizer`** — Added to `src/voice/speech.py` for unit tests that must run without a microphone or network connection.
-- [ ] **ESP32 `stt_client` / `tts_client` HTTP body implementation** — header files define the interface; `esp_http_client`-based implementation bodies are pending.
-- [ ] **Wake-word detection** — on-device trigger word (e.g. "Hey Buddy") before sending audio to STT.
-- [ ] **Automatic STT fallback** — fall back from Whisper to Google STT when the local server is unreachable.
-- [ ] **Automatic TTS fallback** — fall back from Piper to eSpeak when the local server is unreachable.
+- [x] **ESP32 `stt_client` / `tts_client` HTTP body implementation** — full `esp_http_client`-based implementations for Whisper, Google STT, Piper, Google TTS, ElevenLabs, and eSpeak complete.
+- [x] **Wake-word detection** — `WakeWordDetector` class in `src/voice/speech.py`; configurable keywords (default: "hey buddy", "hey agent"); strips wake-word prefix before sending to LLM.
+- [x] **Automatic STT fallback** — `SpeechRecognizer` tries Whisper HTTP first, falls back to Google STT when the local server is unreachable.
+- [x] **Automatic TTS fallback** — `TextToSpeech` tries Piper HTTP first, falls back to system TTS (espeak/say/pyttsx3) when the local server is unreachable.
 - [ ] **Calendar integration**
 - [ ] **Weather services**
 - [ ] **Smart home control**
