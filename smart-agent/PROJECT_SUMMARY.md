@@ -60,15 +60,16 @@ smart-agent/
 
 **Speech Recognition** (`src/voice/speech.py`)
 - Speech-to-text conversion
-- Google Speech Recognition API
-- Optional OpenAI Whisper support
-- Configurable language and parameters
+- Google Speech Recognition API (cloud)
+- Optional OpenAI Whisper support (local)
+- `MockSpeechRecognizer` class for unit tests (no microphone required)
+- Configurable language and energy parameters
 
 **Text-to-Speech** (`src/voice/tts.py`)
-- System text-to-speech
-- Multi-platform support (Windows, macOS, Linux)
-- Streaming audio playback
-- Blocking and non-blocking modes
+- System text-to-speech synthesis
+- Multi-platform: macOS `say`, Linux `espeak`, Windows `pyttsx3`
+- Blocking (`speak()`) and non-blocking (`speak_async()`) modes
+- Streaming chunk callbacks (`speak_stream()`)
 
 ### 3. UI Display
 
@@ -219,7 +220,67 @@ idf.py build flash monitor
 - **Display**: 466x466 pixels
 - **Sample Rate**: 16kHz audio
 
-## Future Enhancements
+## ESP32 Speech-to-Text / Text-to-Speech Integration
+
+The ESP32 firmware delegates all speech processing to services on the local network.
+Ollama handles **text generation only** — it does not process audio.
+
+### Pipeline
+
+```
+I2S Microphone (PCM audio, 16 kHz)
+         │
+         ▼
+   STTClient (stt_client component)
+         │  HTTP POST WAV → Whisper or Google STT server
+         │  Returns: transcript text
+         ▼
+   OllamaClient (ai_client component)
+         │  HTTP POST /api/chat → Ollama LLM server
+         │  Returns: AI response text (streamed)
+         ▼
+   TTSClient (tts_client component)
+         │  HTTP POST text → Piper TTS or Google TTS server
+         │  Returns: WAV audio bytes
+         ▼
+   AudioDriver → I2S Speaker
+```
+
+### Recommended Server Setup (all on one LAN machine, e.g. 192.168.1.251)
+
+| Service | Default Port | Software |
+|---------|-------------|---------|
+| Whisper STT | 9000 | faster-whisper-server or whisper.cpp |
+| Ollama LLM | 11434 | Ollama (`OLLAMA_HOST=0.0.0.0 ollama serve`) |
+| Piper TTS | 5000 | wyoming-piper |
+
+### Supported STT Providers
+
+| Provider | Type | Notes |
+|----------|------|-------|
+| Whisper (local) | faster-whisper-server or whisper.cpp | Private; runs entirely on LAN |
+| Google Cloud Speech | Cloud REST API | Requires API key |
+
+### Supported TTS Providers
+
+| Provider | Type | Notes |
+|----------|------|-------|
+| Piper TTS (local) | wyoming-piper HTTP server | Private; high quality; many voices |
+| eSpeak-ng (local) | eSpeak HTTP wrapper | Lightweight fallback |
+| Google Cloud TTS | Cloud REST API | Requires API key |
+| ElevenLabs | Cloud REST API | Requires API key; highest quality |
+
+### ESP32 Component Summary
+
+| Component | Responsibility |
+|-----------|----------------|
+| `voice_driver` | I2S microphone capture |
+| `stt_client` | HTTP client → STT service; returns transcript |
+| `ai_client` | Orchestrates full pipeline; Ollama LLM tool-call loop |
+| `tts_client` | HTTP client → TTS service; plays WAV via `audio_driver` |
+| `audio_driver` | I2S speaker playback |
+
+
 
 - [ ] Multiple AI model support
 - [ ] Context-aware conversations

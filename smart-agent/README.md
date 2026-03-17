@@ -40,21 +40,26 @@ That's it! Your AI agent is now ready to use.
 
 ### Option 1: Local AI (Ollama) - Free & Private
 
-For best performance and privacy, use Ollama running locally:
+For best performance and privacy, use Ollama running locally on the same network as your ESP32:
 
 ```bash
 # Install Ollama
 brew install ollama  # macOS
 curl -fsSL https://ollama.com/install.sh | sh  # Linux
-# Download for Windows
+# Download for Windows at https://ollama.com
 
-# Start Ollama
-ollama serve
+# Bind to all interfaces so the ESP32 can reach it over WiFi
+OLLAMA_HOST=0.0.0.0 ollama serve
 
-# Pull a model (recommended: llama2 or mistral)
-ollama pull llama2
-ollama pull mistral
+# Pull recommended models
+ollama pull llama2    # general purpose
+ollama pull mistral   # faster, more efficient
 ```
+
+The ESP32 will connect to Ollama at the server's LAN IP (e.g. `http://192.168.1.251:11434`).
+
+> **Note:** Ollama handles **text processing only**.  Speech-to-text and text-to-speech
+> are handled by separate services described below.
 
 ### Option 2: Cloud AI (Gemini) - Easy Setup
 
@@ -71,6 +76,72 @@ For development on PC without the ESP32 hardware:
 # Run Python version with PC simulation
 python main.py
 ```
+
+## Speech Processing Architecture
+
+Smart Agent separates the three stages of voice interaction — capture, understanding, and
+response — across dedicated services.  **Ollama does not process audio**; it receives and
+returns text only.
+
+```
+ESP32-S3
+  │
+  │ I2S mic (PCM audio, 16 kHz)
+  ▼
+STT Service ──────────────────────────────── LAN ──────────────────────
+  │  Options:                                                          │
+  │    • Whisper HTTP server (e.g. faster-whisper-server)             │
+  │      http://192.168.1.251:9000                                    │
+  │    • Google Cloud Speech-to-Text REST API                         │
+  │  Returns: transcribed text                                        │
+  ▼
+Ollama LLM ──────────────────────────────── LAN ──────────────────────
+  │  http://192.168.1.251:11434                                       │
+  │  Models: llama2, mistral, codellama, llama3                       │
+  │  Returns: AI response text (streamed)                             │
+  ▼
+TTS Service ─────────────────────────────── LAN ──────────────────────
+  │  Options:                                                         │
+  │    • Piper TTS HTTP server                                        │
+  │      http://192.168.1.251:5000                                    │
+  │    • Google Cloud Text-to-Speech REST API                         │
+  │  Returns: WAV audio bytes                                         │
+  ▼
+AudioDriver (I2S speaker)
+```
+
+### Setting Up the Speech Stack
+
+All three services can run on the same LAN machine (e.g. a desktop at `192.168.1.251`):
+
+```bash
+# 1. Whisper STT server (faster-whisper-server via Docker)
+docker run --gpus all -p 9000:8000 fedirz/faster-whisper-server:latest-cuda
+# CPU-only alternative: whisper.cpp --server --port 9000
+
+# 2. Ollama LLM
+OLLAMA_HOST=0.0.0.0 ollama serve   # already pulled llama2 / mistral
+
+# 3. Piper TTS server
+python -m wyoming_piper --piper /usr/bin/piper \
+    --voice en_US-lessac-medium --uri tcp://0.0.0.0:5000
+```
+
+Configure the ESP32 firmware to point at these addresses (set in `sdkconfig.defaults` or at
+runtime via `AIClient::initAgent()`).
+
+### Python Mode STT/TTS
+
+The Python client (`src/voice/`) uses the same conceptual pipeline but with local libraries:
+
+| Stage | Library | Fallback |
+|-------|---------|----------|
+| STT | Google Speech Recognition API | OpenAI Whisper (`openai-whisper`) |
+| LLM | `OllamaBackend` or `GeminiBackend` | — |
+| TTS | macOS `say` / Linux `espeak` / Windows `pyttsx3` | — |
+
+A `MockSpeechRecognizer` is also available in `src/voice/speech.py` for tests that must
+run without a microphone or network connection.
 
 ## Installation
 
@@ -123,8 +194,9 @@ esp32/
 │   ├── display_driver/       # AMOLED display driver
 │   ├── voice_driver/         # I2S microphone
 │   ├── audio_driver/         # I2S speaker
-│   ├── ai_client/            # AI communication client
-│   └── include/
+│   ├── stt_client/           # HTTP STT client (Whisper / Google)
+│   ├── tts_client/           # HTTP TTS client (Piper / Google)
+│   └── ai_client/            # Orchestrator: STT → Ollama → TTS
 ├── CMakeLists.txt
 └── README.md
 ```

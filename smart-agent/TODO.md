@@ -88,6 +88,15 @@ Findings from the full project audit. Items are grouped by priority. File paths 
 - [x] **No `ARCHITECTURE.md`** — Created (see `ARCHITECTURE.md`).
 - [x] **No `CHANGELOG.md`** — Created (see `CHANGELOG.md`).
 - [x] **No `LICENSE` file** at repo root or `smart-agent/` level (only in `esp-idf/`). Fixed — MIT LICENSE file added at repo root.
+- [x] **STT/TTS documentation** — Added full speech-to-response pipeline docs in `README.md`, `ARCHITECTURE.md`, `PROJECT_SUMMARY.md`, and `esp32/docs/AI_CLIENT.md`. Clarified that Ollama handles text only; STT (Whisper/Google) and TTS (Piper/Google) are separate services.
+- [x] **ESP32 `stt_client` component** — `components/stt_client/stt_client.h` added. Supports Whisper HTTP server (multipart/form-data WAV upload) and Google Cloud Speech REST API. Includes retry logic and configurable timeout.
+- [x] **ESP32 `tts_client` component** — `components/tts_client/tts_client.h` added. Supports Piper TTS HTTP server, eSpeak-ng HTTP, Google Cloud TTS, and ElevenLabs. Feeds WAV audio to `AudioDriver` for I2S speaker playback.
+- [x] **`ai_client` STT/TTS pipeline** — `AIClient::initAgent()` extended to accept STT and TTS server URLs and an `AudioDriver` pointer. New `processVoiceAudio()` method chains STT → Ollama → TTS in a single call.
+- [x] **Python `MockSpeechRecognizer`** — Added to `src/voice/speech.py` for unit tests that must run without a microphone or network connection.
+- [ ] **ESP32 `stt_client` / `tts_client` HTTP body implementation** — header files define the interface; `esp_http_client`-based implementation bodies are pending.
+- [ ] **Wake-word detection** — on-device trigger word (e.g. "Hey Buddy") before sending audio to STT.
+- [ ] **Automatic STT fallback** — fall back from Whisper to Google STT when the local server is unreachable.
+- [ ] **Automatic TTS fallback** — fall back from Piper to eSpeak when the local server is unreachable.
 - [ ] **Calendar integration**
 - [ ] **Weather services**
 - [ ] **Smart home control**

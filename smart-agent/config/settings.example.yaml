@@ -4,9 +4,11 @@
 ai_backend: "ollama"  # Change to 'gemini' for cloud API
 
 # Ollama Configuration (when ai_backend is 'ollama')
+# NOTE: Ollama handles text generation only — it does NOT process audio.
+# Run with: OLLAMA_HOST=0.0.0.0 ollama serve  (so ESP32 can reach it over WiFi)
 ollama:
-  host: "http://localhost:11434"
-  model: "llama2"  # or 'mistral', 'codellama', etc.
+  host: "http://localhost:11434"     # Change to LAN IP for ESP32, e.g. http://192.168.1.251:11434
+  model: "llama2"  # or 'mistral', 'codellama', 'llama3', etc.
   temperature: 0.7
   max_tokens: 500
 
@@ -16,6 +18,34 @@ gemini:
   model: "gemini-1.5-flash"
   temperature: 0.7
   max_tokens: 500
+
+# Speech-to-Text (STT) Configuration
+# Ollama does NOT transcribe audio. Use one of these providers:
+#   'whisper' — local Whisper HTTP server (private, no API key required)
+#   'google'  — Google Cloud Speech-to-Text REST API (requires api_key)
+stt:
+  provider: "whisper"                  # 'whisper' | 'google'
+  whisper_url: "http://localhost:9000" # Change to LAN IP for ESP32, e.g. http://192.168.1.251:9000
+  google_api_key: ""                   # Required when provider is 'google'
+  language: "en-US"                    # BCP-47 language tag
+  timeout_ms: 10000                    # HTTP request timeout
+  max_retries: 3                       # Retry attempts on transient failures
+
+# Text-to-Speech (TTS) Configuration
+# Options:
+#   'piper'      — local Piper TTS HTTP server (private, high quality)
+#   'espeak'     — local eSpeak-ng HTTP server (lightweight fallback)
+#   'google'     — Google Cloud Text-to-Speech REST API (requires api_key)
+#   'elevenlabs' — ElevenLabs cloud API (requires api_key; highest quality)
+tts:
+  provider: "piper"                    # 'piper' | 'espeak' | 'google' | 'elevenlabs'
+  piper_url: "http://localhost:5000"   # Change to LAN IP for ESP32, e.g. http://192.168.1.251:5000
+  google_api_key: ""                   # Required when provider is 'google'
+  elevenlabs_api_key: ""               # Required when provider is 'elevenlabs'
+  voice: "en_US-lessac-medium"         # Piper voice; or Google voice name; or ElevenLabs voice ID
+  sample_rate: 22050                   # Output sample rate in Hz (must match AudioDriver)
+  timeout_ms: 15000                    # HTTP request timeout
+  max_retries: 3                       # Retry attempts on transient failures
 
 # Voice Configuration
 voice:

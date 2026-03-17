@@ -34,8 +34,28 @@ All project documentation lives in **[smart-agent/](smart-agent/README.md)**.
 - **[Architecture](smart-agent/ARCHITECTURE.md)** — System design and component overview
 - **[Project Summary](smart-agent/PROJECT_SUMMARY.md)** — Feature and module reference
 - **[ESP32 Setup](smart-agent/docs/ESP32_SETUP.md)** — Firmware build and flash guide
+- **[AI Client](smart-agent/esp32/docs/AI_CLIENT.md)** — STT / Ollama / TTS pipeline details
 - **[WiFi Provisioning](smart-agent/WIFI_PROVISIONING.md)** — Network setup details
 - **[TODO](smart-agent/TODO.md)** — Known bugs and roadmap
+
+## Speech Processing Overview
+
+The ESP32 delegates all speech processing to services on the local WiFi network.
+**Ollama handles text generation only** — it does not convert audio to or from speech.
+
+```
+ESP32-S3
+  I2S mic → STT server (Whisper / Google)   →  transcript text
+                                                     │
+                                              Ollama LLM server       ← text only
+                                             (e.g. 192.168.1.251:11434)
+                                                     │
+             TTS server (Piper / Google)  ←  response text
+  WAV audio → I2S speaker
+```
+
+See **[smart-agent/esp32/docs/AI_CLIENT.md](smart-agent/esp32/docs/AI_CLIENT.md)** for
+full setup instructions, API endpoint reference, and server configuration examples.
 
 ## License
 
