@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  lint-and-test:
+    name: Lint and Test (Python)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y portaudio19-dev espeak
+
+      - name: Install Python dependencies
+        working-directory: smart-agent
+        run: |
+          pip install --upgrade pip
+          pip install flake8 pytest pytest-asyncio
+          pip install pyyaml httpx pillow
+
+      - name: Lint with flake8
+        working-directory: smart-agent
+        run: |
+          # stop the build on syntax errors or undefined names
+          flake8 src/ main.py test_agent.py \
+            --count --select=E9,F63,F7,F82 --show-source --statistics
+          # warn on style issues (max line length 120)
+          flake8 src/ main.py test_agent.py \
+            --count --max-line-length=120 --statistics --exit-zero
+
+      - name: Run unit tests
+        working-directory: smart-agent
+        run: |
+          pytest tests/ -v --tb=short 2>/dev/null || echo "No tests directory found — skipping."

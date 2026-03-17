@@ -54,21 +54,20 @@ smart-agent/
 │   ├── QUICK_START.md
 │   ├── ESP32_SETUP.md
 │   └── ESP32_EXAMPLE.c
-├── esp32/                       # ESP-IDF firmware project
-│   ├── main/
-│   │   ├── CMakeLists.txt
-│   │   └── main.cpp            # FreeRTOS app (WiFi, display, voice, AI)
-│   ├── components/
-│   │   ├── wifi_manager/       # AP provisioning + STA connection
-│   │   ├── web_server/         # Captive portal for WiFi setup
-│   │   ├── display_driver/     # AMOLED SPI driver
-│   │   ├── voice_driver/       # I2S microphone input
-│   │   ├── audio_driver/       # I2S speaker output
-│   │   └── ai_client/          # HTTP client for Ollama API
-│   ├── CMakeLists.txt
-│   ├── sdkconfig.defaults      # Board-specific KConfig defaults
-│   └── partitions.csv
-└── base/home/                   # (purpose TBD — see TODO.md)
+└── esp32/                       # ESP-IDF firmware project
+    ├── main/
+    │   ├── CMakeLists.txt
+    │   └── main.cpp            # FreeRTOS app (WiFi, display, voice, AI)
+    ├── components/
+    │   ├── wifi_manager/       # AP provisioning + STA connection
+    │   ├── web_server/         # Captive portal for WiFi setup
+    │   ├── display_driver/     # AMOLED SPI driver
+    │   ├── voice_driver/       # I2S microphone input
+    │   ├── audio_driver/       # I2S speaker output
+    │   └── ai_client/          # HTTP client for Ollama API
+    ├── CMakeLists.txt
+    ├── sdkconfig.defaults      # Board-specific KConfig defaults
+    └── partitions.csv
 ```
 
 ---
