@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+ENV/
+pip-log.txt
+pip-delete-this-directory.txt
+.eggs/
+*.egg-info/
+dist/
+*.egg
+
+# Secrets / local config
+smart-agent/config/settings.yaml
+!smart-agent/config/settings.example.yaml
+.env
+*.env
+
+# ESP-IDF build artifacts
+build/
+sdkconfig
+sdkconfig.old
+!sdkconfig.defaults
+dependencies.lock
+managed_components/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Testing / coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/

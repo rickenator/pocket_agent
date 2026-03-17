@@ -131,15 +131,21 @@ class SmartAgent:
             self.ui.chat.add_message("user", text)
             self.ui.handle_interaction("thinking")
 
+            response_chunks = []
             async for chunk in self.ai.chat(text):
+                response_chunks.append(chunk)
                 self.display.show_text(chunk[-15:], size=16, color=(0, 255, 0))
                 self.tts.speak(chunk)
 
-            self.ui.chat.add_message("assistant", chunk)
+            self.ui.chat.add_message("assistant", ''.join(response_chunks))
 
     def close(self):
         """Cleanup resources"""
         self.display.close()
+        if hasattr(self, 'speech'):
+            self.speech.close()
+        if hasattr(self, 'tts'):
+            self.tts.close()
         if hasattr(self, 'ai'):
             self.ai.close()
 

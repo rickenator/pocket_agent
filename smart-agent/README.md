@@ -78,7 +78,7 @@ python main.py
 
 1. **Clone the repository**
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/rickenator/pocket_agent.git
 cd smart-agent/esp32
 ```
 
@@ -98,7 +98,7 @@ idf.py build flash monitor
 
 ```bash
 # Clone the repository
-git clone <your-repo-url>
+git clone https://github.com/rickenator/pocket_agent.git
 cd smart-agent
 
 # Install Python dependencies
@@ -273,8 +273,8 @@ MIT License - Feel free to use for personal and educational purposes.
 ## Support
 
 - 📖 [Documentation](docs/)
-- 🐛 [Issues](https://github.com/your-repo/issues)
-- 💬 [Discussions](https://github.com/your-repo/discussions)
+- 🐛 [Issues](https://github.com/rickenator/pocket_agent/issues)
+- 💬 [Discussions](https://github.com/rickenator/pocket_agent/discussions)
 
 ---
 

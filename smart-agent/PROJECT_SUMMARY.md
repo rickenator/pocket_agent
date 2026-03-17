@@ -19,7 +19,7 @@ smart-agent/
 │   │   ├── base.py           # Abstract base class
 │   │   ├── ollama.py         # Ollama backend implementation
 │   │   └── gemini.py         # Google Gemini backend implementation
-│   ├──анныйvoice/            # Voice processing modules
+│   ├── voice/                 # Voice processing modules
 │   │   ├── __init__.py
 │   │   ├── mic.py            # Microphone manager
 │   │   ├── speech.py         # Speech recognition

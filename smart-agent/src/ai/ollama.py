@@ -27,12 +27,14 @@ class OllamaBackend(AIBackend):
 
     async def chat(self, message: str, context: list = None) -> AsyncIterator[str]:
         """Chat with Ollama streaming response"""
-        messages = [{"role": "user", "content": message}]
+        messages = []
 
-        # Add context if provided
+        # Add context (history) before the new message
         if context:
             for msg in context:
                 messages.append(msg)
+
+        messages.append({"role": "user", "content": message})
 
         payload = {
             "model": self.model,
@@ -70,11 +72,6 @@ class OllamaBackend(AIBackend):
             except:
                 pass
 
-    def __del__(self):
-        """Cleanup on deletion"""
-        if hasattr(self, 'client') and self.client:
-            self.client.aclose()
-
 
 class LocalLLMProxy:
     """Proxy for local LLM inference (alternative interface)"""
@@ -91,7 +88,7 @@ class LocalLLMProxy:
 
     async def list_models(self) -> list:
         """List available models"""
-        response = self.backend.client.get("/api/tags")
+        response = await self.backend.client.get("/api/tags")
         if response.status_code == 200:
             return response.json().get('models', [])
         return []

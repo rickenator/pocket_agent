@@ -103,7 +103,7 @@ class TestRunner:
             self.test_results.append(("Test 2: Simple Query", False, str(e)))
 
     async def test_code_query(self):
-        """Test 3: Code generation queryhaupt"""
+        """Test 3: Code generation query"""
         print("\n" + "="*60)
         print("TEST 3: Code generation query")
         print("="*60)
@@ -306,7 +306,7 @@ class TestRunner:
 
                 if user_input.lower() in ['test', 'run']:
                     print("\nRunning automated tests...\n")
-                    asyncio.run(self.run_all_tests())
+                    await self.run_all_tests()
                     continue
 
                 if not user_input.strip():
@@ -348,10 +348,10 @@ async def main():
     if args.test:
         await runner.run_all_tests()
     elif args.interactive:
-        runner.interactive_mode()
+        await runner.interactive_mode()
     else:
         # Default to interactive if no args
-        runner.interactive_mode()
+        await runner.interactive_mode()
 
 
 if __name__ == "__main__":
