@@ -257,6 +257,7 @@ ToolResult tool_set_reminder(const char* paramsJson)
 
     int delayMs = (int)(del->valuedouble * 1000.0);
     if (delayMs < 100) delayMs = 100;
+    double delaySec = del->valuedouble;  // save before cJSON_Delete
 
     ReminderData* rd = (ReminderData*)malloc(sizeof(ReminderData));
     if (!rd) {
@@ -283,7 +284,7 @@ ToolResult tool_set_reminder(const char* paramsJson)
     xTimerStart(timer, 0);
 
     char buf[64];
-    snprintf(buf, sizeof(buf), "Reminder set for %.1f seconds from now", del->valuedouble);
+    snprintf(buf, sizeof(buf), "Reminder set for %.1f seconds from now", delaySec);
     return {true, buf, ""};
 }
 

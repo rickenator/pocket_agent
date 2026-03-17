@@ -116,7 +116,7 @@ class InputWidget:
 
     def show_listening(self):
         """Show listening indicator"""
-        self.display.show_icon("mic", display.width // 2, display.height // 2 - 30)
+        self.display.show_icon("mic", self.display.width // 2, self.display.height // 2 - 30)
         self.display.show_text("Listening...", size=20, color=(255, 255, 0), align="center")
 
     def show_typing(self):

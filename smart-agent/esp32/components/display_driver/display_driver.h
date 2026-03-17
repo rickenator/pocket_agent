@@ -85,9 +85,9 @@ public:
     void update();
 
     // Drawing functions
-    void drawText(uint8_t x, uint8_t y, const char* text, display_color_t color);
+    void drawText(uint16_t x, uint16_t y, const char* text, display_color_t color);
     void drawStatus(const char* status, display_color_t color);
-    void drawPixel(uint8_t x, uint8_t y, display_color_t color);
+    void drawPixel(uint16_t x, uint16_t y, display_color_t color);
     void drawLine(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, display_color_t color);
     void drawRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, display_color_t color);
     void fillRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, display_color_t color);

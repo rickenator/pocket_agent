@@ -283,7 +283,7 @@ static inline uint16_t colorToRGB565(display_color_t color) {
     }
 }
 
-void DisplayDriver::drawPixel(uint8_t x, uint8_t y, display_color_t color)
+void DisplayDriver::drawPixel(uint16_t x, uint16_t y, display_color_t color)
 {
     if (x >= DISPLAY_WIDTH || y >= DISPLAY_HEIGHT) {
         return;
@@ -306,7 +306,7 @@ void DisplayDriver::drawPixel(uint8_t x, uint8_t y, display_color_t color)
     m_dirty = true;
 }
 
-void DisplayDriver::drawText(uint8_t x, uint8_t y, const char* text, display_color_t color)
+void DisplayDriver::drawText(uint16_t x, uint16_t y, const char* text, display_color_t color)
 {
     if (y >= DISPLAY_HEIGHT || x >= DISPLAY_WIDTH) {
         return;

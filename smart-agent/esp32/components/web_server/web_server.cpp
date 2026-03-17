@@ -148,6 +148,7 @@ esp_err_t WebServer::handleWiFiCredentials(const char* ssid, const char* passwor
 std::string WebServer::getWiFiStatus() const
 {
     cJSON* root = cJSON_CreateObject();
+    if (!root) return "{}";
 
     if (m_wifi_manager != nullptr) {
         cJSON_AddStringToObject(root, "ssid", m_wifi_manager->getSSID().c_str());
@@ -177,8 +178,8 @@ std::string WebServer::getWiFiStatus() const
     }
 
     char* json_str = cJSON_PrintUnformatted(root);
-    std::string result(json_str);
-    free(json_str);
+    std::string result = json_str ? json_str : "{}";
+    if (json_str) free(json_str);
     cJSON_Delete(root);
 
     return result;
@@ -187,6 +188,7 @@ std::string WebServer::getWiFiStatus() const
 std::string WebServer::getOllamaStatus() const
 {
     cJSON* root = cJSON_CreateObject();
+    if (!root) return "{}";
 
     // Check if localhost:11434 is accessible
     bool ollama_available = false;
@@ -195,8 +197,8 @@ std::string WebServer::getOllamaStatus() const
     cJSON_AddStringToObject(root, "model", "llama2");
 
     char* json_str = cJSON_PrintUnformatted(root);
-    std::string result(json_str);
-    free(json_str);
+    std::string result = json_str ? json_str : "{}";
+    if (json_str) free(json_str);
     cJSON_Delete(root);
 
     return result;

@@ -82,4 +82,12 @@ class GeminiBackend(AIBackend):
     def __del__(self):
         """Cleanup on deletion"""
         if hasattr(self, 'client') and self.client:
-            self.client.aclose()
+            try:
+                import asyncio
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    loop.create_task(self.client.aclose())
+                else:
+                    loop.run_until_complete(self.client.aclose())
+            except Exception:
+                pass

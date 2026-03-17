@@ -31,7 +31,7 @@ class MicrophoneManager:
 
             if not devices:
                 print("Warning: No microphone found, using default")
-                devices = [pyaudio.PyAudio().get_default_input_device_info()['index']]
+                devices = [self.p.get_default_input_device_info()['index']]
 
             self.selected_device = devices[0]
             print(f"Using microphone: {self.p.get_device_info_by_index(self.selected_device)['name']}")

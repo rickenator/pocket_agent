@@ -69,7 +69,7 @@ class OllamaBackend(AIBackend):
         if hasattr(self, 'client') and self.client:
             try:
                 self.client.aclose()
-            except:
+            except Exception:
                 pass
 
 

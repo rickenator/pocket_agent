@@ -34,3 +34,7 @@ class AIBackend(ABC):
         async for chunk in self.chat(message, **kwargs):
             chunks.append(chunk)
         return ''.join(chunks)
+
+    async def close(self):
+        """Release backend resources. Override in subclasses as needed."""
+        pass

@@ -97,7 +97,7 @@ class SmartAgent:
             self.ui.handle_interaction("listening")
             self.display.show_message("Listening...", duration=2000)
 
-            text = self.speech.listen()
+            text = await asyncio.to_thread(self.speech.listen)
             if not text:
                 continue
 
@@ -131,7 +131,7 @@ class SmartAgent:
         logger.info("Starting continuous listening mode...")
 
         while True:
-            text = self.speech.listen()
+            text = await asyncio.to_thread(self.speech.listen)
             if not text:
                 continue
 

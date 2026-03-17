@@ -54,11 +54,13 @@ class SpeechRecognizer:
                     import openai
                     with open("temp_audio.wav", "wb") as f:
                         f.write(audio.get_wav_data())
-                    response = openai.Audio.transcribe(
-                        model="whisper-1",
-                        file=open("temp_audio.wav", "rb"),
-                        language=self.config.get('language', 'en')
-                    )
+                    with open("temp_audio.wav", "rb") as af:
+                        client = openai.OpenAI()
+                        response = client.audio.transcriptions.create(
+                            model="whisper-1",
+                            file=af,
+                            language=self.config.get('language', 'en')
+                        )
                     text = response.text
                     os.remove("temp_audio.wav")
                 except ImportError:
@@ -113,7 +115,7 @@ class SpeechRecognizer:
                         audio.get_results()
                         text = self.recognizer.recognize_google(audio, language=self.config.get('language', 'en-US'))
                         return text
-                    except:
+                    except (sr.UnknownValueError, sr.RequestError, Exception):
                         break
 
             audio.stop()

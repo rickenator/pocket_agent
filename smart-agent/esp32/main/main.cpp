@@ -84,6 +84,11 @@ static void goal_execution_task(void* pvParameters)
     ESP_LOGI(TAG, "Goal Execution Task started");
 
     while (1) {
+        if (g_ai == nullptr) {
+            vTaskDelay(pdMS_TO_TICKS(5000));
+            continue;
+        }
+
         GoalManager* goals = g_ai->getGoals();
         ToolRegistry* tools = g_ai->getTools();
 
@@ -156,6 +161,10 @@ static void app_main_task(void* pvParameters)
 
         if (cmd != VOICE_COMMAND_UNKNOWN) {
             ESP_LOGI(TAG, "Command received: %d", cmd);
+            // getCommandString() must be called BEFORE getCommand() clears m_lastCommand,
+            // but getCommand() was already called above. The text buffer set via
+            // setCommandText() is stable until the next command, so reading it here is safe.
+            ESP_LOGI(TAG, "Command text: %s", g_voice->getCommandString());
             xEventGroupSetBits(s_event_group, APP_EVENT_LISTENING_COMPLETED);
             g_voice->stopListening();
         }
@@ -273,7 +282,7 @@ extern "C" void app_main()
     }
 
     // Create tasks
-    xTaskCreate(wifi_monitor_task,    "wifi_monitor",    2048, nullptr, 2, nullptr);
+    xTaskCreate(wifi_monitor_task,    "wifi_monitor",    4096, nullptr, 2, nullptr);
     xTaskCreate(ai_processing_task,   "ai_processing",   8192, nullptr, 5, nullptr);
     xTaskCreate(goal_execution_task,  "goal_execution",  8192, nullptr, 3, nullptr);
     xTaskCreate(app_main_task,        "app_main",        4096, nullptr, 3, nullptr);
