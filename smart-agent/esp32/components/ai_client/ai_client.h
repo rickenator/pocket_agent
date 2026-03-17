@@ -8,6 +8,8 @@
 #include "memory_manager.h"
 #include "goal_manager.h"
 #include "tool_registry.h"
+#include "circuit_breaker.h"
+#include "response_cache.h"
 #include "../stt_client/stt_client.h"
 #include "../tts_client/tts_client.h"
 
@@ -65,7 +67,14 @@ public:
     //   3. Send to Ollama (with conversation history)
     //   4. If LLM returns a tool call, execute tool and re-query
     //   5. Repeat until final text response; save to memory
+    //   Responses for identical queries are served from the response cache.
     esp_err_t processAgentQuery(const char* userInput, std::string& response);
+
+    // Streaming variant: calls responseCallback for each response chunk.
+    // TTS can begin consuming chunks immediately for reduced perceived latency.
+    // Note: tool-call iterations are performed internally before streaming begins.
+    esp_err_t processAgentQueryStream(const char* userInput,
+                                      ollama_stream_callback_t responseCallback);
 
     // Full voice pipeline: PCM audio → STT → Ollama → TTS → I2S speaker.
     //   pcmData    — signed 16-bit PCM samples (mono)
@@ -88,12 +97,14 @@ public:
     ai_response_type_t getResponseType();
 
     // Accessors for sub-components
-    OllamaClient*  getOllama()  { return m_ollama;  }
-    MemoryManager* getMemory()  { return m_memory;  }
-    GoalManager*   getGoals()   { return m_goals;   }
-    ToolRegistry*  getTools()   { return m_tools;   }
-    STTClient*     getSTT()     { return m_stt;     }
-    TTSClient*     getTTS()     { return m_tts;     }
+    OllamaClient*  getOllama()   { return m_ollama;   }
+    MemoryManager* getMemory()   { return m_memory;   }
+    GoalManager*   getGoals()    { return m_goals;    }
+    ToolRegistry*  getTools()    { return m_tools;    }
+    STTClient*     getSTT()      { return m_stt;      }
+    TTSClient*     getTTS()      { return m_tts;      }
+    CircuitBreaker* getCircuitBreaker() { return &m_circuitBreaker; }
+    ResponseCache* getCache()    { return &m_cache;   }
 
 private:
     OllamaClient*  m_ollama;
@@ -103,14 +114,21 @@ private:
     STTClient*     m_stt;
     TTSClient*     m_tts;
 
+    CircuitBreaker m_circuitBreaker;
+    ResponseCache  m_cache;
+
     std::string        m_lastResponse;
     ai_response_type_t m_responseType;
     bool               m_initialized;
     bool               m_agentReady;
 
+    // Default maximum tool iterations (may be overridden adaptively).
     static const int MAX_TOOL_ITERATIONS = 5;
 
     std::string buildSystemPrompt() const;
+
+    // Returns an adaptive iteration limit based on keywords in userInput.
+    static int calculateMaxIterations(const std::string& userInput);
 };
 
 #endif // AI_CLIENT_H
