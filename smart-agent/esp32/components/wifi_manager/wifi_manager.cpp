@@ -204,8 +204,8 @@ void WiFiManager::handleEvent(esp_event_base_t event_base, int32_t event_id, voi
                 m_ssid = "";
                 m_ip = "";
 
-                // Reconnect after delay
-                if (m_status != WifiStatus::AP_MODE) {
+                // Reconnect after delay only if not in AP mode
+                if (!m_ap_started) {
                     vTaskDelay(pdMS_TO_TICKS(1000));
                     esp_wifi_connect();
                 }

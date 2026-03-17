@@ -43,11 +43,9 @@ class TextToSpeech:
                 engine.save_to_file(text, wav_path)
                 engine.runAndWait()
             elif os.uname().sysname == 'Darwin':  # macOS
-                cmd = f"say -r 150 '{text}' -o {wav_path}"
-                subprocess.run(cmd, shell=True, check=True)
+                subprocess.run(["say", "-r", "150", text, "-o", wav_path], check=True)
             else:  # Linux
-                cmd = f"espeak -v en -s 150 -q '{text}' -w {wav_path}"
-                subprocess.run(cmd, shell=True, check=True)
+                subprocess.run(["espeak", "-v", "en", "-s", "150", "-q", text, "-w", wav_path], check=True)
 
             # Play audio
             if blocking:
@@ -79,9 +77,9 @@ class TextToSpeech:
                 engine.save_to_file(text, wav_path)
                 engine.runAndWait()
             elif os.uname().sysname == 'Darwin':
-                subprocess.run(f"say -r 150 '{text}' -o {wav_path}", shell=True, check=True)
+                subprocess.run(["say", "-r", "150", text, "-o", wav_path], check=True)
             else:
-                subprocess.run(f"espeak -v en -s 150 -q '{text}' -w {wav_path}", shell=True, check=True)
+                subprocess.run(["espeak", "-v", "en", "-s", "150", "-q", text, "-w", wav_path], check=True)
 
             # Stream audio
             self.stream_audio(wav_path, callback)

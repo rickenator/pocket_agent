@@ -82,9 +82,6 @@ class DisplayManager:
             draw.text((pos_x, pos_y), text,
                      font=font, fill=color)
 
-            # Draw text
-            draw.text((pos_x, pos_y), text, font=font, fill=color)
-
             # Convert to RGB and send to display
             rgb_img = img.convert('RGB')
             self.display.display(rgb_img)

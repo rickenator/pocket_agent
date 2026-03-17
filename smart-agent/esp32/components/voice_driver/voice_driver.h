@@ -28,13 +28,18 @@ public:
     esp_err_t startListening();
     void stopListening();
 
-    // Get detected command
+    // Set the raw text that was captured from voice input (e.g., from STT)
+    void setCommandText(const char* text);
+
+    // Get detected command enum (clears it after reading)
     voice_command_t getCommand();
-    const char* getCommandString();
+    // Get the raw text for the last voice command (does NOT clear — stable until next command)
+    const char* getCommandString() const;
 
 private:
     bool m_isListening;
     voice_command_t m_lastCommand;
+    char m_commandText[512];  // Raw text from STT for the current command
 };
 
 #endif // VOICE_DRIVER_H
