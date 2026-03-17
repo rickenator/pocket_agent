@@ -1,0 +1,49 @@
+name: Python application
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  lint-and-check:
+    name: Lint and dependency check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y portaudio19-dev espeak
+
+      - name: Install Python dependencies
+        working-directory: smart-agent
+        run: |
+          pip install --upgrade pip
+          pip install flake8 pip-audit
+          pip install -r requirements.txt
+
+      - name: Lint with flake8
+        working-directory: smart-agent
+        run: |
+          # Fail on syntax errors or undefined names
+          flake8 src/ main.py test_agent.py \
+            --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Report style issues without failing the build
+          flake8 src/ main.py test_agent.py \
+            --count --max-line-length=120 --statistics --exit-zero
+
+      - name: Check dependencies for known vulnerabilities
+        working-directory: smart-agent
+        run: |
+          pip-audit -r requirements.txt --progress-spinner off

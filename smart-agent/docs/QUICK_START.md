@@ -70,22 +70,18 @@ python main.py
 
 ### Step 1: Setup ESP-IDF
 ```bash
-# Linux工作开展
-git clone --recursive https://github.com/espressif/ESP-IDF.git
-cd ESP-IDF
+# Linux / macOS
+git clone --recurse-submodules https://github.com/espressif/esp-idf.git
+cd esp-idf
 ./install.sh esp32s3
 source export.sh
 ```
 
-### Step 2: Clone Display Driver
+### Step 2: Build and Flash the Pocket Agent Firmware
 ```bash
-git clone https://github.com/waveshare/AMOLED_Display-466x466-EPD
-```
-
-### Step 3: Build and Flash
-```bash
-cd AMOLED_Display-466x466-EPD
-idf.py build flash monitor
+cd smart-agent/esp32
+idf.py build
+idf.py -p /dev/ttyUSB0 flash monitor
 ```
 
 ## Voice Input
