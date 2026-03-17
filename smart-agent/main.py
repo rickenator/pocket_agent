@@ -5,9 +5,12 @@ Voice-enabled AI assistant with round AMOLED display
 """
 
 import asyncio
+import logging
 import sys
 import yaml
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / 'src'))
@@ -68,7 +71,7 @@ class SmartAgent:
 
     async def run(self):
         """Main application loop"""
-        print("Smart Agent starting...")
+        logger.info("Smart Agent starting...")
 
         # Show welcome screen
         self.ui.show_welcome()
@@ -81,7 +84,7 @@ class SmartAgent:
         )
 
         if not ai_available:
-            print("Warning: AI backend not available!")
+            logger.warning("AI backend not available!")
             return
 
         # Main interaction loop
@@ -105,23 +108,27 @@ class SmartAgent:
             self.ui.handle_interaction("thinking")
             self.display.show_message("AI is thinking...", duration=2000)
 
-            response_chunks = []
-            async for chunk in self.ai.chat(text):
-                response_chunks.append(chunk)
-                # Stream to display
-                self.display.show_text(chunk[-20:], size=16, color=(200, 200, 200))
+            try:
+                response_chunks = []
+                async for chunk in self.ai.chat(text):
+                    response_chunks.append(chunk)
+                    # Stream to display
+                    self.display.show_text(chunk[-20:], size=16, color=(200, 200, 200))
 
-            response = ''.join(response_chunks)
+                response = ''.join(response_chunks)
 
-            # Show AI response
-            self.ui.chat.add_message("assistant", response)
+                # Show AI response
+                self.ui.chat.add_message("assistant", response)
 
-            # Speak response
-            self.tts.speak(response)
+                # Speak response
+                self.tts.speak(response)
+            except Exception as e:
+                logger.error("AI chat error: %s", e)
+                self.ui.handle_interaction("idle")
 
     async def run_continuous(self):
         """Run with continuous listening"""
-        print("Starting continuous listening mode...")
+        logger.info("Starting continuous listening mode...")
 
         while True:
             text = self.speech.listen()
@@ -131,13 +138,17 @@ class SmartAgent:
             self.ui.chat.add_message("user", text)
             self.ui.handle_interaction("thinking")
 
-            response_chunks = []
-            async for chunk in self.ai.chat(text):
-                response_chunks.append(chunk)
-                self.display.show_text(chunk[-15:], size=16, color=(0, 255, 0))
-                self.tts.speak(chunk)
+            try:
+                response_chunks = []
+                async for chunk in self.ai.chat(text):
+                    response_chunks.append(chunk)
+                    self.display.show_text(chunk[-15:], size=16, color=(0, 255, 0))
+                    self.tts.speak(chunk)
 
-            self.ui.chat.add_message("assistant", ''.join(response_chunks))
+                self.ui.chat.add_message("assistant", ''.join(response_chunks))
+            except Exception as e:
+                logger.error("AI chat error: %s", e)
+                self.ui.handle_interaction("idle")
 
     def close(self):
         """Cleanup resources"""
@@ -153,6 +164,11 @@ class SmartAgent:
 async def main():
     """Main entry point"""
     agent = SmartAgent()
+    log_level = agent.config.get('app', {}).get('log_level', 'INFO')
+    logging.basicConfig(
+        level=getattr(logging, log_level.upper(), logging.INFO),
+        format='%(asctime)s %(levelname)s %(name)s: %(message)s',
+    )
 
     try:
         # Check if continuous mode requested
@@ -161,7 +177,7 @@ async def main():
         else:
             await agent.run()
     except KeyboardInterrupt:
-        print("\nShutting down...")
+        logger.info("Shutting down...")
     finally:
         agent.close()
 
@@ -170,4 +186,4 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\nBye!")
+        logger.info("Bye!")
