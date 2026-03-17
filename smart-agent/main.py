@@ -29,6 +29,7 @@ class SmartAgent:
 
     def __init__(self, config_path: str = "config/settings.yaml"):
         self.config = self.load_config(config_path)
+        self.conversation_history: list = []
         self.setup_ai_backend()
         self.setup_display()
         self.setup_voice()
@@ -110,12 +111,16 @@ class SmartAgent:
 
             try:
                 response_chunks = []
-                async for chunk in self.ai.chat(text):
+                async for chunk in self.ai.chat(text, context=self.conversation_history):
                     response_chunks.append(chunk)
                     # Stream to display
                     self.display.show_text(chunk[-20:], size=16, color=(200, 200, 200))
 
                 response = ''.join(response_chunks)
+
+                # Update conversation history
+                self.conversation_history.append({"role": "user", "content": text})
+                self.conversation_history.append({"role": "assistant", "content": response})
 
                 # Show AI response
                 self.ui.chat.add_message("assistant", response)
@@ -140,12 +145,17 @@ class SmartAgent:
 
             try:
                 response_chunks = []
-                async for chunk in self.ai.chat(text):
+                async for chunk in self.ai.chat(text, context=self.conversation_history):
                     response_chunks.append(chunk)
                     self.display.show_text(chunk[-15:], size=16, color=(0, 255, 0))
                     self.tts.speak(chunk)
 
-                self.ui.chat.add_message("assistant", ''.join(response_chunks))
+                response = ''.join(response_chunks)
+                # Update conversation history
+                self.conversation_history.append({"role": "user", "content": text})
+                self.conversation_history.append({"role": "assistant", "content": response})
+
+                self.ui.chat.add_message("assistant", response)
             except Exception as e:
                 logger.error("AI chat error: %s", e)
                 self.ui.handle_interaction("idle")

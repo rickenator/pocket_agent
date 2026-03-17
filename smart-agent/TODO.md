@@ -71,8 +71,8 @@ Findings from the full project audit. Items are grouped by priority. File paths 
 - [x] **Duplicate `PROJECT_SUMMARY.md`** — same issue. Fixed — `smart-agent/esp32/PROJECT_SUMMARY.md` now redirects to `../PROJECT_SUMMARY.md`.
 - [x] **Duplicate quickstart docs** — `docs/QUICK_START.md` and `esp32/QUICKSTART.md`. Consolidate. Fixed — `esp32/QUICKSTART.md` now redirects to `../docs/QUICK_START.md`.
 - [x] **`smart-agent/CMakeLists.txt` duplicates `smart-agent/esp32/CMakeLists.txt`** — remove or consolidate. Fixed — `smart-agent/CMakeLists.txt` deleted.
-- [ ] **`base/home/` directory purpose undocumented** — document or remove.
-- [ ] **`esp-idf/` is a vendored full copy of ESP-IDF** — should be a git submodule or rely on the system ESP-IDF installation.
+- [x] **`base/home/` directory purpose undocumented** — stale developer-path artefact; removed from the repository.
+- [x] **`esp-idf/` is a vendored full copy of ESP-IDF** — converted to a git submodule pointing to `espressif/esp-idf` at `v5.2.1`.
 - [x] **No root-level `.gitignore`** — Created (see `.gitignore`).
 - [x] **No root-level `README.md`** — Created (see `README.md`).
 - [x] **README mentions `cp config/settings.example.yaml config/settings.yaml`** but `settings.yaml` is already committed — clarify instructions. Fixed — `settings.yaml` removed from tracking.
@@ -83,10 +83,10 @@ Findings from the full project audit. Items are grouped by priority. File paths 
 
 - [x] **`google-generativeai` not in `requirements.txt`** — add if using the official Python SDK for Gemini. Fixed — added `google-generativeai>=0.3.0`.
 - [x] **`pyttsx3` not in `requirements.txt`** — add if using system TTS. Fixed — added `pyttsx3>=2.90`.
-- [ ] **No conversation history management** — neither Ollama nor Gemini backends persist conversation state between calls. Implement session context management.
-- [ ] **No CI/CD pipeline** — add GitHub Actions for linting and tests.
-- [ ] **No `ARCHITECTURE.md`** — Created (see `ARCHITECTURE.md`).
-- [ ] **No `CHANGELOG.md`** — create when releases begin.
+- [x] **No conversation history management** — `SmartAgent` now maintains a `conversation_history` list that is passed to AI backends on every call; `test_agent.py` interactive mode also tracks history with a `clear` command to reset it.
+- [x] **No CI/CD pipeline** — added `.github/workflows/ci.yml` with `flake8` linting and `pytest` unit tests triggered on push and pull request.
+- [x] **No `ARCHITECTURE.md`** — Created (see `ARCHITECTURE.md`).
+- [x] **No `CHANGELOG.md`** — Created (see `CHANGELOG.md`).
 - [x] **No `LICENSE` file** at repo root or `smart-agent/` level (only in `esp-idf/`). Fixed — MIT LICENSE file added at repo root.
 - [ ] **Calendar integration**
 - [ ] **Weather services**

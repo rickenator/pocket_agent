@@ -140,22 +140,28 @@ class TestRunner:
         print("TEST 4: Conversation context")
         print("="*60)
 
+        conversation_history = []
+
         # First message
         query1 = "My favorite color is blue"
         print(f"Query 1: {query1}")
 
         response1 = ""
-        async for chunk in self.backend.chat(query1):
+        async for chunk in self.backend.chat(query1, context=conversation_history):
             response1 += chunk
 
         print("\nResponse 1:", response1)
+
+        # Update history after first exchange
+        conversation_history.append({"role": "user", "content": query1})
+        conversation_history.append({"role": "assistant", "content": response1})
 
         # Second message should reference first
         query2 = "What color did I say is my favorite?"
         print(f"Query 2: {query2}")
 
         response2 = ""
-        async for chunk in self.backend.chat(query2):
+        async for chunk in self.backend.chat(query2, context=conversation_history):
             response2 += chunk
 
         print("\nResponse 2:", response2)
@@ -294,7 +300,10 @@ class TestRunner:
         print("Type your message and press Enter")
         print("Type 'exit' to quit")
         print("Type 'test' to run all automated tests")
+        print("Type 'clear' to reset conversation history")
         print("="*60)
+
+        conversation_history = []
 
         while True:
             try:
@@ -309,18 +318,27 @@ class TestRunner:
                     await self.run_all_tests()
                     continue
 
+                if user_input.lower() == 'clear':
+                    conversation_history = []
+                    print("Conversation history cleared.")
+                    continue
+
                 if not user_input.strip():
                     continue
 
                 print("\n🤖 AI:")
 
                 response = ""
-                async for chunk in self.backend.chat(user_input):
+                async for chunk in self.backend.chat(user_input, context=conversation_history):
                     response += chunk
                     print(chunk, end='', flush=True)
                     time.sleep(0.01)
 
                 print()
+
+                # Update conversation history after successful exchange
+                conversation_history.append({"role": "user", "content": user_input})
+                conversation_history.append({"role": "assistant", "content": response})
 
             except KeyboardInterrupt:
                 print("\n\nInterrupted. Goodbye!")
