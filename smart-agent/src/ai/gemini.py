@@ -1,6 +1,6 @@
 """Gemini Backend Implementation"""
 
-import os
+import json
 import httpx
 from typing import AsyncIterator
 from .base import AIBackend
@@ -23,22 +23,26 @@ class GeminiBackend(AIBackend):
 
     async def chat(self, message: str, context: list = None) -> AsyncIterator[str]:
         """Chat with Gemini streaming response"""
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:streamGenerateContent"
+        url = (
+            f"https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{self.model}:streamGenerateContent?key={self.api_key}"
+        )
 
         headers = {
-            "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
         }
 
-        contents = [{"role": "user", "parts": [{"text": message}]}]
+        contents = []
 
-        # Add context if provided
+        # Add context (history) before the new message
         if context:
             for msg in context:
                 if msg.get('role') == 'user':
                     contents.append({"role": "user", "parts": [{"text": msg.get('content', '')}]})
                 elif msg.get('role') == 'assistant':
                     contents.append({"role": "model", "parts": [{"text": msg.get('content', '')}]})
+
+        contents.append({"role": "user", "parts": [{"text": message}]})
 
         payload = {
             "contents": contents,
@@ -58,7 +62,7 @@ class GeminiBackend(AIBackend):
                 async for line in response.aiter_lines():
                     if line.strip():
                         try:
-                            data = httpx.JSONResponse.content_to_json(line)
+                            data = json.loads(line)
                             if 'candidates' in data and len(data['candidates']) > 0:
                                 content = data['candidates'][0].get('content', {})
                                 parts = content.get('parts', [])
