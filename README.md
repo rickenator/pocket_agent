@@ -39,24 +39,7 @@ All project documentation lives in **[smart-agent/](smart-agent/README.md)**.
 - **[TODO](TODO.md)** — Project roadmap and planned features
 - **[Contributing](CONTRIBUTING.md)** — How to contribute to this project
 
-## Speech Processing Overview
 
-The ESP32 delegates all speech processing to services on the local WiFi network.
-**Ollama handles text generation only** — it does not convert audio to or from speech.
-
-```
-ESP32-S3
-  I2S mic → STT server (Whisper / Google)   →  transcript text
-                                                     │
-                                              Ollama LLM server       ← text only
-                                             (e.g. 192.168.1.251:11434)
-                                                     │
-             TTS server (Piper / Google)  ←  response text
-  WAV audio → I2S speaker
-```
-
-See **[smart-agent/esp32/docs/AI_CLIENT.md](smart-agent/esp32/docs/AI_CLIENT.md)** for
-full setup instructions, API endpoint reference, and server configuration examples.
 
 ## License
 
