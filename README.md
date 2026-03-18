@@ -1,5 +1,7 @@
 ![ESP32-S3 Touch AMOLED 1.75"](smart-agent/docs/ESP32-S3-Touch-AMOLED-1.75C-details-1.jpg)
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/rickenator/pocket_agent)
+
 # Pocket Agent
 
 A voice-enabled AI agent built for the Waveshare ESP32-S3 1.75" AMOLED round display.
