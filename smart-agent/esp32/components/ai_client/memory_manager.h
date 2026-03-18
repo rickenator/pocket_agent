@@ -42,6 +42,17 @@ public:
     // Returns: [{"role":"system","content":"..."},{"role":"user","content":"..."},...]
     std::string buildMessagesJson(const char* systemPrompt = nullptr) const;
 
+    // Remove turns older than maxAgeSecs seconds (0 = no age limit).
+    // Always keeps at least keepMinTurns of the most recent turns.
+    void pruneOldConversations(int64_t maxAgeSecs = 604800LL /* 7 days */,
+                               size_t keepMinTurns = 2);
+
+    // Rough token estimate: ~4 characters per token (GPT/Llama convention).
+    static size_t estimateTokenCount(const std::string& text);
+
+    // Return total estimated token count across all history turns.
+    size_t totalHistoryTokens() const;
+
 private:
     nvs_handle_t m_nvsHandle;
     std::vector<ConversationTurn> m_history;

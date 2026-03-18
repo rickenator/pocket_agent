@@ -1,6 +1,8 @@
 #include "ai_client.h"
 #include "esp_log.h"
 #include <cstring>
+#include <algorithm>
+#include <cctype>
 
 static const char* TAG = "AI_CLIENT";
 
@@ -20,6 +22,8 @@ AIClient::AIClient()
     , m_tools(nullptr)
     , m_stt(nullptr)
     , m_tts(nullptr)
+    , m_circuitBreaker(3, 30000000LL /* 30 s */)
+    , m_cache(32, 300 /* 5-min TTL */)
     , m_responseType(AI_RESPONSE_TEXT)
     , m_initialized(false)
     , m_agentReady(false)
@@ -154,6 +158,27 @@ std::string AIClient::buildSystemPrompt() const
     return prompt;
 }
 
+int AIClient::calculateMaxIterations(const std::string& userInput)
+{
+    // Build a lower-case copy for case-insensitive keyword matching
+    std::string lower(userInput.size(), '\0');
+    std::transform(userInput.begin(), userInput.end(), lower.begin(),
+                   [](unsigned char c) { return (char)std::tolower(c); });
+
+    // Simple queries rarely need more than 2–3 tool calls
+    if (lower.find("weather") != std::string::npos) return 3;
+    if (lower.find("time")    != std::string::npos) return 2;
+    if (lower.find("date")    != std::string::npos) return 2;
+    if (lower.find("gpio")    != std::string::npos) return 2;
+    if (lower.find("remind")  != std::string::npos) return 3;
+
+    // Calculation / research tasks may chain more tool calls
+    if (lower.find("calculat") != std::string::npos) return 3;
+    if (lower.find("search")   != std::string::npos) return 4;
+
+    return MAX_TOOL_ITERATIONS; // default
+}
+
 esp_err_t AIClient::processAgentQuery(const char* userInput, std::string& response)
 {
     if (!m_initialized || !userInput) return ESP_ERR_INVALID_ARG;
@@ -166,6 +191,22 @@ esp_err_t AIClient::processAgentQuery(const char* userInput, std::string& respon
 
     ESP_LOGI(TAG, "Agent query: %s", userInput);
 
+    // Check response cache for identical queries
+    if (m_cache.get(userInput, response)) {
+        ESP_LOGI(TAG, "Cache HIT — returning cached response");
+        m_lastResponse = response;
+        m_responseType = AI_RESPONSE_TEXT;
+        return ESP_OK;
+    }
+
+    // Circuit breaker: reject immediately if the LLM service is known-down
+    if (!m_circuitBreaker.allowRequest()) {
+        ESP_LOGW(TAG, "Circuit OPEN — LLM service unavailable");
+        response = "AI service temporarily unavailable. Please try again shortly.";
+        m_responseType = AI_RESPONSE_TEXT;
+        return ESP_ERR_INVALID_STATE;
+    }
+
     // Build system prompt with tool descriptions
     std::string systemPrompt = buildSystemPrompt();
 
@@ -175,21 +216,26 @@ esp_err_t AIClient::processAgentQuery(const char* userInput, std::string& respon
     // Add user input to persistent memory
     if (m_memory) m_memory->addTurn("user", userInput);
 
-    // Agent loop: up to MAX_TOOL_ITERATIONS tool calls before forcing a final answer
+    // Adaptive iteration limit based on query complexity
+    const int maxIter = calculateMaxIterations(userInput);
+
+    // Agent loop: up to maxIter tool calls before forcing a final answer
     std::string llmResponse;
     std::string currentInput = userInput;
     int iteration = 0;
 
-    while (iteration < MAX_TOOL_ITERATIONS) {
+    while (iteration < maxIter) {
         ++iteration;
 
         esp_err_t err = m_ollama->createChatCompletion(currentInput.c_str(), llmResponse);
         if (err != ESP_OK) {
             ESP_LOGE(TAG, "LLM request failed: %s", esp_err_to_name(err));
+            m_circuitBreaker.recordFailure();
             response = "Error communicating with AI server.";
             m_responseType = AI_RESPONSE_TEXT;
             return err;
         }
+        m_circuitBreaker.recordSuccess();
 
         // Check if the LLM wants to call a tool
         if (m_tools && m_tools->hasToolCall(llmResponse.c_str())) {
@@ -229,15 +275,102 @@ esp_err_t AIClient::processAgentQuery(const char* userInput, std::string& respon
     m_lastResponse = llmResponse;
     m_responseType = AI_RESPONSE_TEXT;
 
-    // Save assistant response to memory
+    // Save assistant response to memory and cache
     if (m_memory) {
         m_memory->addTurn("assistant", llmResponse.c_str());
         m_memory->saveHistory(); // Persist (best-effort)
     }
+    m_cache.put(userInput, llmResponse);
 
     ESP_LOGI(TAG, "Agent response (%u chars): %.80s%s",
              (unsigned)response.size(), response.c_str(),
              response.size() > 80 ? "..." : "");
+    return ESP_OK;
+}
+
+esp_err_t AIClient::processAgentQueryStream(const char* userInput,
+                                             ollama_stream_callback_t responseCallback)
+{
+    if (!m_initialized || !userInput || !responseCallback) return ESP_ERR_INVALID_ARG;
+
+    if (!m_agentReady) {
+        ESP_LOGW(TAG, "Agent not fully initialized — call initAgent() first");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    // Circuit breaker check
+    if (!m_circuitBreaker.allowRequest()) {
+        ESP_LOGW(TAG, "Circuit OPEN — LLM service unavailable (stream)");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    ESP_LOGI(TAG, "Agent stream query: %s", userInput);
+
+    std::string systemPrompt = buildSystemPrompt();
+    m_ollama->addSystemPrompt(systemPrompt.c_str());
+
+    if (m_memory) m_memory->addTurn("user", userInput);
+
+    // Resolve any tool-call iterations with non-streaming calls first, then
+    // stream the final text response to the caller.
+    const int maxIter = calculateMaxIterations(userInput);
+    std::string currentInput = userInput;
+    int iteration = 0;
+
+    while (iteration < maxIter) {
+        ++iteration;
+
+        // Check whether this iteration will produce a tool call by doing a
+        // non-streaming request.  Only the final, non-tool-call response is streamed.
+        std::string llmResponse;
+        esp_err_t err = m_ollama->createChatCompletion(currentInput.c_str(), llmResponse);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "LLM request failed (stream pre-pass): %s", esp_err_to_name(err));
+            m_circuitBreaker.recordFailure();
+            return err;
+        }
+        m_circuitBreaker.recordSuccess();
+
+        if (m_tools && m_tools->hasToolCall(llmResponse.c_str())) {
+            // Handle tool call the same way as the non-streaming path
+            std::string toolName   = m_tools->extractToolName(llmResponse.c_str());
+            std::string toolParams = m_tools->extractToolParams(llmResponse.c_str());
+
+            ESP_LOGI(TAG, "Tool call (stream): %s  params: %s",
+                     toolName.c_str(), toolParams.c_str());
+
+            ToolResult result = m_tools->executeTool(toolName.c_str(), toolParams.c_str());
+            std::string toolResultMsg;
+            if (result.success) {
+                toolResultMsg = "Tool '" + toolName + "' result: " + result.output;
+            } else {
+                toolResultMsg = "Tool '" + toolName + "' failed: " + result.error;
+            }
+            if (m_memory) m_memory->addTurn("tool", toolResultMsg.c_str());
+            currentInput = toolResultMsg;
+        } else {
+            // Final response — re-issue as streaming so the caller gets chunks
+            err = m_ollama->createChatCompletionStream(currentInput.c_str(), responseCallback);
+            if (err != ESP_OK) {
+                ESP_LOGE(TAG, "LLM stream request failed: %s", esp_err_to_name(err));
+                m_circuitBreaker.recordFailure();
+                return err;
+            }
+            m_circuitBreaker.recordSuccess();
+
+            // Persist assistant response captured in llmResponse (from the
+            // non-streaming pre-pass above) for memory/cache consistency.
+            m_lastResponse = llmResponse;
+            m_responseType = AI_RESPONSE_TEXT;
+            if (m_memory) {
+                m_memory->addTurn("assistant", llmResponse.c_str());
+                m_memory->saveHistory();
+            }
+            m_cache.put(userInput, llmResponse);
+            break;
+        }
+    }
+
     return ESP_OK;
 }
 

@@ -321,3 +321,50 @@ std::string MemoryManager::buildMessagesJson(const char* systemPrompt) const
     free(json);
     return result;
 }
+
+void MemoryManager::pruneOldConversations(int64_t maxAgeSecs, size_t keepMinTurns)
+{
+    if (!m_mutex) return;
+    xSemaphoreTake(m_mutex, portMAX_DELAY);
+
+    if (m_history.size() <= keepMinTurns) {
+        xSemaphoreGive(m_mutex);
+        return;
+    }
+
+    int64_t nowSecs = esp_timer_get_time() / 1000000LL;
+
+    size_t removed = 0;
+    // Iterate from oldest; stop once we would go below keepMinTurns
+    auto it = m_history.begin();
+    while (it != m_history.end() && (m_history.size() - removed) > keepMinTurns) {
+        if (maxAgeSecs > 0 && it->timestamp > 0 &&
+            (nowSecs - it->timestamp) > maxAgeSecs) {
+            it = m_history.erase(it);
+            ++removed;
+        } else {
+            ++it;
+        }
+    }
+
+    xSemaphoreGive(m_mutex);
+
+    if (removed > 0) {
+        ESP_LOGI(TAG, "Pruned %u old conversation turn(s)", (unsigned)removed);
+    }
+}
+
+size_t MemoryManager::estimateTokenCount(const std::string& text)
+{
+    // Rough approximation: ~4 characters per token (English text, GPT/Llama convention)
+    return (text.size() + 3) / 4;
+}
+
+size_t MemoryManager::totalHistoryTokens() const
+{
+    size_t total = 0;
+    for (const auto& turn : m_history) {
+        total += estimateTokenCount(turn.content);
+    }
+    return total;
+}
